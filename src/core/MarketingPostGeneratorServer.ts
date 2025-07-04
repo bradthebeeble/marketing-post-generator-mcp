@@ -9,6 +9,7 @@ import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ClaudeService, IClaudeService } from '../services/claude/index.js';
 import { InitPrompt } from '../prompts/index.js';
+import { PromptFactory } from '../types/index.js';
 import winston from 'winston';
 import express from 'express';
 import cors from 'cors';
@@ -21,6 +22,7 @@ export class MarketingPostGeneratorServer {
   private readonly logger: winston.Logger;
   private httpServer?: express.Application;
   private httpTransport?: StreamableHTTPServerTransport;
+  private readonly prompts: Map<string, PromptFactory> = new Map();
 
   constructor(private readonly config: ServerConfig) {
     this.logger = createLogger(config.logging);
@@ -214,52 +216,79 @@ export class MarketingPostGeneratorServer {
 
   private registerPrompts(): void {
     try {
-      // Register init prompt
-      const initPrompt = new InitPrompt();
-      const promptDefinition = initPrompt.createPrompt();
+      // Register all prompt instances
+      const promptInstances: PromptFactory[] = [
+        new InitPrompt(),
+        // Add more prompts here as they're implemented
+      ];
+      
+      // Store prompts in registry for O(1) lookup
+      promptInstances.forEach(prompt => {
+        this.prompts.set(prompt.getPromptName(), prompt);
+      });
+      
+      // Create prompt definitions for MCP registration
+      const promptDefinitions = promptInstances.map(prompt => prompt.createPrompt());
       
       this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
         return {
-          prompts: [promptDefinition],
+          prompts: promptDefinitions,
         };
       });
 
       this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
         
-        if (name === 'init') {
-          // Validate arguments for init prompt
-          if (!args || typeof args !== 'object' || !('domain' in args) || typeof args.domain !== 'string') {
-            throw new Error('Init prompt requires a "domain" argument');
-          }
-          
-          const initArgs = args as { domain: string };
-          
-          return {
-            description: promptDefinition.description,
-            arguments: promptDefinition.arguments,
-            messages: [
-              {
-                role: 'user' as const,
-                content: {
-                  type: 'text' as const,
-                  text: await initPrompt.executePrompt(initArgs),
-                },
-              },
-            ],
-          };
+        const promptFactory = this.prompts.get(name);
+        if (!promptFactory) {
+          throw new Error(`Unknown prompt: ${name}`);
         }
         
-        throw new Error(`Unknown prompt: ${name}`);
+        const promptDefinition = promptFactory.createPrompt();
+        
+        // Validate arguments based on prompt requirements
+        this.validatePromptArguments(name, args);
+        
+        // Execute the prompt
+        let result: string;
+        if (name === 'init') {
+          const initPrompt = promptFactory as InitPrompt;
+          result = await initPrompt.executePrompt(args as { domain: string });
+        } else {
+          throw new Error(`Prompt execution not implemented for: ${name}`);
+        }
+        
+        return {
+          description: promptDefinition.description,
+          arguments: promptDefinition.arguments,
+          messages: [
+            {
+              role: 'user' as const,
+              content: {
+                type: 'text' as const,
+                text: result,
+              },
+            },
+          ],
+        };
       });
 
       this.logger.info('Prompts registered successfully', {
-        registeredPrompts: [promptDefinition.name],
+        registeredPrompts: promptDefinitions.map(p => p.name),
       });
     } catch (error) {
       this.logger.error('Failed to register prompts', { error });
       throw error;
     }
+  }
+
+  private validatePromptArguments(name: string, args: any): void {
+    if (name === 'init') {
+      if (!args || typeof args !== 'object' || !('domain' in args) || typeof args.domain !== 'string') {
+        throw new Error('Init prompt requires a "domain" argument');
+      }
+    }
+    // Add validation for other prompts as they're implemented
   }
 
   async stop(): Promise<void> {

@@ -61,7 +61,7 @@ export class InitPrompt implements PromptFactory {
       const config: PostgenConfig = {
         domain: url.hostname,
         initialized: new Date().toISOString(),
-        version: '1.0.0',
+        version: process.env.npm_package_version || '1.0.0',
       };
       
       await this.createConfigFile(postgenDir, config);

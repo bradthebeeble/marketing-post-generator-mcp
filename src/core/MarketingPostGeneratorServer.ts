@@ -3,10 +3,12 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { DIContainer } from './container/DIContainer.js';
 import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ClaudeService, IClaudeService } from '../services/claude/index.js';
+import { InitPrompt } from '../prompts/index.js';
 import winston from 'winston';
 import express from 'express';
 import cors from 'cors';
@@ -63,6 +65,9 @@ export class MarketingPostGeneratorServer {
         },
       }
     );
+
+    // Register prompts
+    this.registerPrompts();
 
     // Connect transport
     void this.mcpServer.connect(transport);
@@ -203,6 +208,56 @@ export class MarketingPostGeneratorServer {
       });
     } catch (error) {
       this.logger.error('Failed to start server', { error });
+      throw error;
+    }
+  }
+
+  private registerPrompts(): void {
+    try {
+      // Register init prompt
+      const initPrompt = new InitPrompt();
+      const promptDefinition = initPrompt.createPrompt();
+      
+      this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+        return {
+          prompts: [promptDefinition],
+        };
+      });
+
+      this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+        const { name, arguments: args } = request.params;
+        
+        if (name === 'init') {
+          // Validate arguments for init prompt
+          if (!args || typeof args !== 'object' || !('domain' in args) || typeof args.domain !== 'string') {
+            throw new Error('Init prompt requires a "domain" argument');
+          }
+          
+          const initArgs = args as { domain: string };
+          
+          return {
+            description: promptDefinition.description,
+            arguments: promptDefinition.arguments,
+            messages: [
+              {
+                role: 'user' as const,
+                content: {
+                  type: 'text' as const,
+                  text: await initPrompt.executePrompt(initArgs),
+                },
+              },
+            ],
+          };
+        }
+        
+        throw new Error(`Unknown prompt: ${name}`);
+      });
+
+      this.logger.info('Prompts registered successfully', {
+        registeredPrompts: [promptDefinition.name],
+      });
+    } catch (error) {
+      this.logger.error('Failed to register prompts', { error });
       throw error;
     }
   }

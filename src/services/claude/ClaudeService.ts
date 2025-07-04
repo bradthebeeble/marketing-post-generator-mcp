@@ -136,21 +136,18 @@ export class ClaudeService implements IClaudeService {
       if (options.metadata !== undefined) streamParams.metadata = options.metadata;
 
       const stream = this.client.messages.stream(streamParams);
-      let totalInputTokens = 0;
-      let totalOutputTokens = 0;
 
       try {
         for await (const chunk of stream) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
             yield chunk.delta.text;
-          } else if (chunk.type === 'message_stop' && chunk.message?.usage) {
-            totalInputTokens = chunk.message.usage.input_tokens || 0;
-            totalOutputTokens = chunk.message.usage.output_tokens || 0;
           }
         }
       } finally {
-        // Update rate limits with the tokens used
-        this.updateRateLimit(totalInputTokens, totalOutputTokens);
+        // TODO: Implement proper usage tracking when available in stream events
+        // For now, we'll rely on rate limiting based on estimates
+        const estimatedTokens = Math.ceil(prompt.length / 4); // Rough estimation
+        this.updateRateLimit(estimatedTokens, estimatedTokens);
       }
 
     } catch (error) {

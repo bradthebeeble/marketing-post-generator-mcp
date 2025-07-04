@@ -21,7 +21,7 @@ export class DIContainer {
   resolve<T>(token: string): T {
     // Return cached instance for singletons
     if (this.singletons.has(token) && this.services.has(token)) {
-      return this.services.get(token);
+      return this.services.get(token) as T;
     }
 
     const factory = this.factories.get(token);
@@ -36,7 +36,7 @@ export class DIContainer {
       this.services.set(token, instance);
     }
 
-    return instance;
+    return instance as T;
   }
 
   /**

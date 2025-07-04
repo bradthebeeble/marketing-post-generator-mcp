@@ -36,7 +36,7 @@ export class InitPrompt implements PromptFactory {
     return {
       name: this.getPromptName(),
       description: this.getPromptDescription(),
-      arguments: [
+      parameters: [
         {
           name: 'domain',
           description: 'The domain/URL of the main blog page',
@@ -108,6 +108,18 @@ export class InitPrompt implements PromptFactory {
 
   private async createDirectoryStructure(postgenDir: string): Promise<void> {
     try {
+      // Check if .postgen directory already exists
+      try {
+        const stat = await fs.stat(postgenDir);
+        if (stat.isDirectory()) {
+          this.logger.warn(`.postgen directory already exists at ${postgenDir}`);
+          this.logger.warn('Existing configuration and data may be overwritten');
+          // Consider adding user confirmation in the future
+        }
+      } catch (error) {
+        // Directory doesn't exist, which is fine
+      }
+
       // Create main .postgen directory
       await fs.mkdir(postgenDir, { recursive: true });
 

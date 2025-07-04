@@ -39,9 +39,12 @@ export class SampleTool {
   private readonly logger: winston.Logger;
   private readonly webScrapingService: WebScrapingService;
 
-  constructor() {
-    this.logger = createLogger({ level: 'info', format: 'simple' });
-    this.webScrapingService = new WebScrapingService();
+  constructor(
+    logger?: winston.Logger,
+    webScrapingService?: WebScrapingService
+  ) {
+    this.logger = logger || createLogger({ level: 'info', format: 'simple' });
+    this.webScrapingService = webScrapingService || new WebScrapingService();
   }
 
   getToolDefinition(): Tool {
@@ -261,12 +264,12 @@ Please respond with ONLY the JSON object, no additional text or formatting.`;
 
       // Fallback: Create a basic analysis from the raw response
       return {
-        positioning: 'Analysis pending - see raw response',
-        toneOfVoice: 'Analysis pending - see raw response',
-        contentStrategy: 'Analysis pending - see raw response',
-        keyThemes: ['content', 'marketing', 'communication'],
-        writingStyle: 'Analysis pending - see raw response',
-        targetAudience: 'Analysis pending - see raw response',
+        positioning: 'Unable to extract positioning analysis from AI response',
+        toneOfVoice: 'Unable to extract tone of voice analysis from AI response',
+        contentStrategy: 'Unable to extract content strategy analysis from AI response',
+        keyThemes: ['Unable to extract themes - manual review recommended'],
+        writingStyle: 'Unable to extract writing style analysis from AI response',
+        targetAudience: 'Unable to extract target audience analysis from AI response',
       };
     }
   }

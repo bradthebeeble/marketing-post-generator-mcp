@@ -1,1 +1,1 @@
-export { SampleTool } from './SampleTool.js';
+export { SampleTool } from './SampleTool';

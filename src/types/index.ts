@@ -50,7 +50,7 @@ export interface MCPTool {
 export interface MCPPrompt {
   name: string;
   description: string;
-  arguments: Array<{
+  parameters: Array<{
     name: string;
     description: string;
     required: boolean;

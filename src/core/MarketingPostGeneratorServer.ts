@@ -321,8 +321,11 @@ export class MarketingPostGeneratorServer {
         // Get Claude service for tool execution
         const claudeService = this.getClaudeService();
 
-        // Execute the tool
-        const result = await tool.execute(args as any, claudeService);
+        // TODO: Add runtime validation using the tool's input schema
+        // const toolDefinition = tool.getToolDefinition();
+        
+        // Execute the tool with validated arguments
+        const result = await tool.execute(args as Record<string, any>, claudeService);
 
         return {
           content: [

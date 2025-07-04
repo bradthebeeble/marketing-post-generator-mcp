@@ -144,20 +144,21 @@ export class ClaudeService implements IClaudeService {
       if (options.metadata !== undefined) streamParams.metadata = options.metadata;
 
       const stream = this.client.messages.stream(streamParams);
+      let outputTokenCount = 0;
 
       try {
         for await (const chunk of stream) {
           if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            // Track output tokens using rough estimation (4 chars per token)
+            outputTokenCount += Math.ceil(chunk.delta.text.length / 4);
             yield chunk.delta.text;
           }
         }
       } finally {
-        // TODO: Implement proper usage tracking when available in stream events
-        // For now, estimate input tokens only as output is unknown during streaming
-        const estimatedInputTokens = Math.ceil(prompt.length / 4); // Rough estimation
-        // Use conservative estimate for output tokens or track them separately
-        const estimatedOutputTokens = 0; // Will be updated when actual usage is available
-        this.updateRateLimit(estimatedInputTokens, estimatedOutputTokens);
+        // Estimate input tokens using rough heuristic (4 chars per token)
+        const estimatedInputTokens = Math.ceil(prompt.length / 4);
+        // Use actual tracked output tokens from stream
+        this.updateRateLimit(estimatedInputTokens, outputTokenCount);
       }
     } catch (error) {
       this.logger.error('Failed to stream content', {
@@ -261,10 +262,18 @@ export class ClaudeService implements IClaudeService {
     }
 
     const maxRequests = this.config.rateLimit?.requestsPerMinute || 60;
+    const maxTokens = this.config.rateLimit?.tokensPerMinute || 50_000;
 
     if (this.rateLimiter.requests.count >= maxRequests) {
       const waitTime = this.rateLimiter.requests.resetTime - now;
       throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`);
+    }
+
+    if (this.rateLimiter.tokens.count >= maxTokens) {
+      const waitTime = this.rateLimiter.tokens.resetTime - now;
+      throw new Error(
+        `Token quota exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`
+      );
     }
   }
 

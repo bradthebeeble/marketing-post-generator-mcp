@@ -331,7 +331,14 @@ export class WebScrapingService {
       const date =
         $(selector).attr('content') || $(selector).attr('datetime') || $(selector).text();
       if (date) {
-        return new Date(date).toISOString();
+        try {
+          const parsedDate = new Date(date);
+          if (!isNaN(parsedDate.getTime())) {
+            return parsedDate.toISOString();
+          }
+        } catch (error) {
+          this.logger.debug('Failed to parse date', { date, error });
+        }
       }
     }
 

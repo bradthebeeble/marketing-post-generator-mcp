@@ -33,7 +33,7 @@ This command implements **EXACTLY ONE** task or subtask at a time and **NEVER** 
    - **Success Criteria**: Define how success will be measured for THIS task only
    - **TaskMaster Updates**: Plan for updating ONLY this task's status
    - **Execution Boundary**: Clearly state where execution stops (no auto-progression)
-5. **Present Plan**: Use exit_plan_mode to present the plan to the user for approval
+5. **Present Plan**: Use exit_plan_mode to present the plan to the user - the user will then either approve, request modifications, or decline the plan
 
 ### Phase 2: Plan Approval (MANDATORY - WAIT FOR USER APPROVAL)
 1. **Present Plan**: Present the comprehensive plan to the user
@@ -71,7 +71,7 @@ If modifications are needed during planning or implementation:
    - Provides clear next steps
    - Maintains continuity with completed work
    - Updates TaskMaster tasks accordingly
-3. **Present Updated Plan**: Use exit_plan_mode to present the updated plan for approval
+3. **Present Updated Plan**: Use exit_plan_mode to present the updated plan - the user will then either approve, request further modifications, or decline the plan
 4. **Return to Phase 2**: Wait for user approval of updated plan
 
 ## TaskMaster Integration Guidelines

@@ -19,6 +19,16 @@ export interface ServerConfig {
     cacheEnabled: boolean;
     cacheTtl: number;
   };
+  claude: {
+    apiKey: string;
+    baseUrl?: string;
+    maxRetries?: number;
+    timeout?: number;
+    rateLimit?: {
+      requestsPerMinute: number;
+      tokensPerMinute: number;
+    };
+  };
   logging: {
     level: 'error' | 'warn' | 'info' | 'debug' | 'trace';
     format: 'simple' | 'json' | 'pretty';

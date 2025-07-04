@@ -40,4 +40,11 @@ node_modules/
 
 # Keep project-specific taskmaster files:
 # .taskmaster/docs/ (PRD and other project docs)
-# .taskmaster/tasks/ (our generated tasks) 
+# .taskmaster/tasks/ (our generated tasks)
+
+# Additional untracked files
+.env.example
+.github/
+.mcp.json
+AGENTS.md
+CLAUDE.md 

@@ -5,8 +5,22 @@
       "Bash(git remote add:*)",
       "Bash(git push:*)",
       "Bash(ls:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "mcp__taskmaster-ai__initialize_project",
+      "mcp__task-master-ai__get_tasks",
+      "Bash(find:*)",
+      "Bash(mkdir:*)",
+      "mcp__task-master-ai__get_task",
+      "mcp__task-master-ai__next_task",
+      "mcp__task-master-ai__update_task",
+      "mcp__task-master-ai__set_task_status",
+      "mcp__coderabbitai__get_coderabbit_reviews"
     ],
     "deny": []
-  }
+  },
+  "enableAllProjectMcpServers": true,
+  "enabledMcpjsonServers": [
+    "task-master-ai"
+  ]
 }

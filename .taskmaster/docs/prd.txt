@@ -1,0 +1,95 @@
+<context>
+# Overview  
+The **Marketing Post Generator** supports marketing teams and content writers by leveraging AI to automate the creation of marketing blog posts.  
+It provides a comprehensive set of tools and services (as an MCP server) to answer questions, summarize content, extract insights, and generate marketing copy.  
+Due to its flexibility as an MCP server, the service can be used in a wide variety of ways.
+
+# Core Features  
+Leveraging MCP tools, resources, and prompts, the service provides a wide set of capabilities, including:
+- Sampling blog posts from a domain and extracting positioning, tone of voice, and content strategy
+- Summarizing individual blog posts
+- Creating and managing a content plan for future posts, taking into account domain-specific topics, content variety, emerging trends, and other strategic factors
+- Generating narratives and bullet points for upcoming posts
+- Writing complete blog posts from scratch
+
+# User Experience  
+The entire implementation of the Marketing Post Generator is delivered as an MCP server, meaning the user experience is mediated by AI/chat clients or CLIs that support the MCP protocol.  
+Depending on the capabilities of the client, the following interaction models are expected:
+
+- **Using MCP prompts to extract commands with arguments**  
+  _Example_: In Claude Code, a user can issue a slash command like:  
+  `/marketing_post_generator_mcp__summarize <post-url>`
+
+- **Utilizing MCP tools directly**  
+  _Use Case_: Tools are invoked at the discretion of the AI client based on its understanding of context.  
+  _Example_: A prompt such as “Go through my most popular posts at this domain <domain>, summarize them, and let me know the overall tone”  
+  may result in multiple tool calls with arguments like:  
+  `tool:(marketing_post_generator_mcp__sample)` and `tool:(marketing_post_generator_mcp__generate_tone)`
+</context>
+
+<PRD>
+# Technical Architecture  
+- The server shall be implemented as an MCP server, conforming to the formal specification  
+- Both local and remote (HTTP) MCP modes shall be supported  
+- The server will embed the Claude Code library as part of its runtime to perform agentic operations  
+- Code will be written in TypeScript, leveraging both the MCP Server TS SDK and the Claude Code TS SDK  
+- Figure out the right tools and prompts to create based on the feature list above
+- Consider what prompt arguments to include (e.g. blog-url, sampling arguments etc.)
+- Consider what tool names, descriptions and arguments to specify in tools, to oprimize their usage by MCP clients
+
+- In addition to the tools and prompts supporting the features above, the server will expose an **init prompt** that accepts the domain/URL of the main blog page.  
+  This prompt instructs the MCP client to create a dedicated directory structure in the root project directory, referenced by the folder name `.postgen`  
+- Other tools and prompts may reference only files within this folder (e.g., a content plan generator may write into a specific file, while the blog post generator reads from it)  
+- The server should support containerized deployment, including Docker support  
+
+**IMPORTANT:** Fetch data from the links under *Technical Specifications* to ensure correct use of SDKs and adherence to integration standards.
+
+# Code Style  
+- Use ES Modules (`import/export`) rather than CommonJS (`require`)  
+- Prefer destructured imports (e.g., `import { foo } from 'bar'`)
+
+# Workflow  
+- Always type-check after making a series of code changes  
+- For performance, run individual tests instead of the full test suite when possible  
+
+# Development Roadmap  
+The project will be developed in three main phases:
+
+**Phase 1: MVP Tooling**  
+- Implement core tools: `sample`, `summarize`, `generate_tone`, and `write_post`  
+- Create and test the init prompt logic and `.postgen` folder handling  
+- Establish containerized setup and basic CLI client compatibility  
+
+**Phase 2: Feature Expansion**  
+- Add content plan generation and tracking tools  
+- Improve sampling to support tone/style inference across a full domain  
+- Introduce a CLI helper or lightweight dashboard for internal testing  
+
+**Phase 3: Optimization and Refinement**  
+- Optimize performance for concurrent tool usage  
+- Add rate limiting and error handling in remote HTTP deployments  
+- Extend support for multiple blogs/domains with profile switching
+
+# Logical Dependency Chain  
+1. **Claude Code SDK** and **MCP Server SDK** must be initialized before any tool usage  
+2. The **init prompt** must be triggered before tools can interact with the `.postgen` folder  
+3. Tool outputs may depend on prior steps (e.g., tone extraction → content generation)  
+4. Each tool should declare explicit input/output contracts to allow dependency chaining by the AI client  
+
+# Risks and Mitigations  
+
+| Risk | Mitigation |
+|------|------------|
+| Improper folder structure setup | Validate `.postgen` path and contents at startup |
+| SDK breaking changes | Lock SDK versions and add integration tests for backward compatibility |
+| Misuse of tools by AI clients | Include metadata and usage guides with each tool registration |
+| Overfetching or spam from sampling tools | Add domain-level throttling and opt-in configuration |
+| Ambiguity in content generation | Design prompts to be explicit and context-aware, with fallback defaults |
+
+# Appendix  
+- **Technical Specifications**  
+  -- MCP Server SDK: https://www.npmjs.com/package/@modelcontextprotocol/sdk  
+  -- Claude Code SDK: https://www.npmjs.com/package/@anthropic-ai/claude-code  
+  -- Claude Code Docs: https://docs.anthropic.com/en/docs/claude-code/sdk  
+  -- Docker Docs: https://docs.docker.com/engine/reference/commandline/
+</PRD>

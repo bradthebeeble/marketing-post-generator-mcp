@@ -42,8 +42,8 @@ export class MarketingPostGeneratorServer {
     });
   }
 
-  public getContainer(): DIContainer {
-    return this.container;
+  public getClaudeService(): IClaudeService {
+    return this.container.resolve<IClaudeService>('ClaudeService');
   }
 
   private initializeMCPServer(): void {

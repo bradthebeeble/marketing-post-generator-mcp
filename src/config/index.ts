@@ -137,11 +137,11 @@ export function validateConfig(config: ServerConfig): void {
     throw new Error('Claude API key is required. Set CLAUDE_API_KEY environment variable');
   }
 
-  if (config.claude.maxRetries && (config.claude.maxRetries < 0 || config.claude.maxRetries > 10)) {
+  if (config.claude.maxRetries !== undefined && (config.claude.maxRetries < 0 || config.claude.maxRetries > 10)) {
     throw new Error('Claude max retries must be between 0 and 10');
   }
 
-  if (config.claude.timeout && (config.claude.timeout < 1000 || config.claude.timeout > 120000)) {
+  if (config.claude.timeout !== undefined && (config.claude.timeout < 1000 || config.claude.timeout > 120000)) {
     throw new Error('Claude timeout must be between 1000ms and 120000ms (2 minutes)');
   }
 

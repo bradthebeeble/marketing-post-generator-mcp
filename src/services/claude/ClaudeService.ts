@@ -5,6 +5,11 @@ import { ServerConfig } from '../../types/index.js';
 import { createLogger } from '../../utils/logger.js';
 import winston from 'winston';
 
+const CLAUDE_MODELS = {
+  DEFAULT: 'claude-3-sonnet-20240229',
+  CHEAP: 'claude-3-haiku-20240307',
+} as const;
+
 export class ClaudeService implements IClaudeService {
   private client: Anthropic;
   private config: ServerConfig['claude'];
@@ -45,7 +50,7 @@ export class ClaudeService implements IClaudeService {
       await this.checkRateLimit();
 
       const createParams: any = {
-        model: options.model || 'claude-3-sonnet-20240229',
+        model: options.model || CLAUDE_MODELS.DEFAULT,
         max_tokens: options.maxTokens || 4096,
         messages: [
           {
@@ -113,7 +118,7 @@ export class ClaudeService implements IClaudeService {
       await this.checkRateLimit();
 
       const streamParams: any = {
-        model: options.model || 'claude-3-sonnet-20240229',
+        model: options.model || CLAUDE_MODELS.DEFAULT,
         max_tokens: options.maxTokens || 4096,
         messages: [
           {
@@ -131,11 +136,21 @@ export class ClaudeService implements IClaudeService {
       if (options.metadata !== undefined) streamParams.metadata = options.metadata;
 
       const stream = this.client.messages.stream(streamParams);
+      let totalInputTokens = 0;
+      let totalOutputTokens = 0;
 
-      for await (const chunk of stream) {
-        if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-          yield chunk.delta.text;
+      try {
+        for await (const chunk of stream) {
+          if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+            yield chunk.delta.text;
+          } else if (chunk.type === 'message_stop' && chunk.message?.usage) {
+            totalInputTokens = chunk.message.usage.input_tokens || 0;
+            totalOutputTokens = chunk.message.usage.output_tokens || 0;
+          }
         }
+      } finally {
+        // Update rate limits with the tokens used
+        this.updateRateLimit(totalInputTokens, totalOutputTokens);
       }
 
     } catch (error) {
@@ -151,7 +166,7 @@ export class ClaudeService implements IClaudeService {
   async isHealthy(): Promise<boolean> {
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: CLAUDE_MODELS.CHEAP,
         max_tokens: 10,
         messages: [
           {
@@ -197,7 +212,7 @@ export class ClaudeService implements IClaudeService {
   async validateApiKey(): Promise<boolean> {
     try {
       const response = await this.client.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: CLAUDE_MODELS.CHEAP,
         max_tokens: 5,
         messages: [
           {

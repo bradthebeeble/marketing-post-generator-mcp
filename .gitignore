@@ -51,4 +51,7 @@ node_modules/
 .github/
 .mcp.json
 AGENTS.md
-CLAUDE.md 
+CLAUDE.md
+
+# Post generation content (contains user-specific analysis data)
+.postgen/ 

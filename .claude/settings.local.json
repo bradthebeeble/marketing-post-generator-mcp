@@ -20,7 +20,10 @@
       "Bash(npm run build:*)",
       "Bash(MCP_MODE=local npm run start)",
       "Bash(pkill:*)",
-      "Bash(true)"
+      "Bash(true)",
+      "mcp__github__list_pull_requests",
+      "mcp__coderabbitai__get_review_comments",
+      "mcp__coderabbitai__resolve_comment"
     ],
     "deny": []
   },

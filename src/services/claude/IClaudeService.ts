@@ -24,12 +24,15 @@ export interface ClaudeResponse {
 
 export interface IClaudeService {
   generateContent(prompt: string, options?: ClaudeGenerationOptions): Promise<GeneratedContent>;
-  
-  streamContent(prompt: string, options?: ClaudeGenerationOptions): AsyncGenerator<string, void, unknown>;
-  
+
+  streamContent(
+    prompt: string,
+    options?: ClaudeGenerationOptions
+  ): AsyncGenerator<string, void, unknown>;
+
   isHealthy(): Promise<boolean>;
-  
+
   getRemainingQuota(): Promise<{ requests: number; tokens: number } | null>;
-  
+
   validateApiKey(): Promise<boolean>;
 }

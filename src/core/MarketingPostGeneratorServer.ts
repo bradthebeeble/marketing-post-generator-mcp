@@ -6,6 +6,7 @@ import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/
 import { DIContainer } from './container/DIContainer.js';
 import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
+import { ClaudeService, IClaudeService } from '../services/claude/index.js';
 import winston from 'winston';
 import express from 'express';
 import cors from 'cors';
@@ -30,10 +31,19 @@ export class MarketingPostGeneratorServer {
     // Register core services with the DI container
     this.container.register('Logger', () => this.logger);
     this.container.register('Config', () => this.config);
+    
+    // Register Claude service
+    this.container.register<IClaudeService>('ClaudeService', () => {
+      return new ClaudeService(this.config.claude);
+    });
 
     this.logger.info('Dependencies initialized', {
       registeredServices: this.container.getRegisteredTokens(),
     });
+  }
+
+  public getContainer(): DIContainer {
+    return this.container;
   }
 
   private initializeMCPServer(): void {

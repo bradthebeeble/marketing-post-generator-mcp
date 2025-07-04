@@ -39,6 +39,16 @@ export const DEFAULT_CONFIG: ServerConfig = {
     cacheEnabled: parseBoolean(process.env.POSTGEN_CACHE_ENABLED, true),
     cacheTtl: parseInt(process.env.POSTGEN_CACHE_TTL || '3600000', 10), // 1 hour
   },
+  claude: {
+    apiKey: process.env.CLAUDE_API_KEY || '',
+    ...(process.env.CLAUDE_BASE_URL && { baseUrl: process.env.CLAUDE_BASE_URL }),
+    maxRetries: parseInt(process.env.CLAUDE_MAX_RETRIES || '3', 10),
+    timeout: parseInt(process.env.CLAUDE_TIMEOUT || '30000', 10), // 30 seconds
+    rateLimit: {
+      requestsPerMinute: parseInt(process.env.CLAUDE_RATE_LIMIT_REQUESTS || '60', 10),
+      tokensPerMinute: parseInt(process.env.CLAUDE_RATE_LIMIT_TOKENS || '50000', 10),
+    },
+  },
   logging: {
     level: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug' | 'trace') || 'info',
     format: (process.env.LOG_FORMAT as 'simple' | 'json' | 'pretty') || 'simple',
@@ -121,5 +131,26 @@ export function validateConfig(config: ServerConfig): void {
 
   if (!config.postgen.dataDir) {
     throw new Error('PostGen data directory is required');
+  }
+
+  if (!config.claude.apiKey) {
+    throw new Error('Claude API key is required. Set CLAUDE_API_KEY environment variable');
+  }
+
+  if (config.claude.maxRetries && (config.claude.maxRetries < 0 || config.claude.maxRetries > 10)) {
+    throw new Error('Claude max retries must be between 0 and 10');
+  }
+
+  if (config.claude.timeout && (config.claude.timeout < 1000 || config.claude.timeout > 120000)) {
+    throw new Error('Claude timeout must be between 1000ms and 120000ms (2 minutes)');
+  }
+
+  if (config.claude.rateLimit) {
+    if (config.claude.rateLimit.requestsPerMinute < 1 || config.claude.rateLimit.requestsPerMinute > 1000) {
+      throw new Error('Claude rate limit requests per minute must be between 1 and 1000');
+    }
+    if (config.claude.rateLimit.tokensPerMinute < 1000 || config.claude.rateLimit.tokensPerMinute > 1000000) {
+      throw new Error('Claude rate limit tokens per minute must be between 1000 and 1000000');
+    }
   }
 }

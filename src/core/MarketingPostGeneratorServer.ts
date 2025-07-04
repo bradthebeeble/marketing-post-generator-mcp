@@ -37,7 +37,7 @@ export class MarketingPostGeneratorServer {
     this.mcpServer = new Server(
       {
         name: 'marketing-post-generator-mcp',
-        version: '1.0.0',
+        version: process.env.npm_package_version || '1.0.0',
       },
       {
         capabilities: {

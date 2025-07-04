@@ -13,8 +13,8 @@ export interface ServerConfig {
     cacheTtl: number;
   };
   logging: {
-    level: string;
-    format: string;
+    level: 'error' | 'warn' | 'info' | 'debug' | 'trace';
+    format: 'simple' | 'json' | 'pretty';
   };
   cors?: {
     allowedOrigins: string[];
@@ -66,11 +66,17 @@ export enum ContentType {
   TONE_ANALYSIS = 'tone_analysis',
 }
 
+export interface UsageMetadata {
+  promptTokens?: number;
+  completionTokens?: number;
+  totalTokens?: number;
+}
+
 export interface GeneratedContent {
   content: string;
   metadata: {
     model?: string;
-    usage?: any;
+    usage?: UsageMetadata;
     duration: number;
   };
 }

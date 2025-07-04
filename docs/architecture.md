@@ -18,7 +18,7 @@ The Marketing Post Generator MCP is a sophisticated AI-powered content generatio
 
 The Marketing Post Generator MCP operates as a sophisticated content generation pipeline that transforms domain analysis into high-quality marketing content. The system consists of five primary components that work together to deliver comprehensive content generation capabilities.
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────────┐
 │                     MCP CLIENT LAYER                            │
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐ │
@@ -650,7 +650,7 @@ export class ToolRegistry {
 
 The `.postgen` directory provides a structured approach to data persistence with clear separation of concerns:
 
-```
+```text
 .postgen/
 ├── config.json                    # Domain configuration and metadata
 ├── samples/                       # Domain sampling results

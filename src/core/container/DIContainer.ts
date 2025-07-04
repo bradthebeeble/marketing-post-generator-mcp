@@ -1,8 +1,8 @@
 // Dependency Injection Container for the Marketing Post Generator MCP
 
 export class DIContainer {
-  private readonly services = new Map<string, any>();
-  private readonly factories = new Map<string, () => any>();
+  private readonly services = new Map<string, unknown>();
+  private readonly factories = new Map<string, () => unknown>();
   private readonly singletons = new Set<string>();
 
   /**

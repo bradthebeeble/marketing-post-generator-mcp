@@ -2,6 +2,11 @@
 
 import { ServerConfig } from '../types/index.js';
 
+function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
+  if (value === undefined) return defaultValue;
+  return value.toLowerCase() === 'true';
+}
+
 export const DEFAULT_CONFIG: ServerConfig = {
   server: {
     mode: (process.env.MCP_MODE as 'local' | 'remote') || 'local',
@@ -11,7 +16,7 @@ export const DEFAULT_CONFIG: ServerConfig = {
   },
   postgen: {
     dataDir: process.env.POSTGEN_DATA_DIR || '.postgen',
-    cacheEnabled: process.env.POSTGEN_CACHE_ENABLED !== 'false',
+    cacheEnabled: parseBoolean(process.env.POSTGEN_CACHE_ENABLED, true),
     cacheTtl: parseInt(process.env.POSTGEN_CACHE_TTL || '3600000', 10), // 1 hour
   },
   logging: {

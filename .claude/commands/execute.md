@@ -155,7 +155,7 @@ Determine thinking level based on task characteristics:
 ## Examples
 
 ### Simple Task
-```
+```bash
 /execute "Fix the typo in the header component"
 ```
 - Planning uses "think" level
@@ -166,7 +166,7 @@ Determine thinking level based on task characteristics:
 - **STOPS** after fixing typo - suggests next task but waits for user
 
 ### Complex Task - Single Task Focus
-```
+```bash
 /execute "Implement Auth.js middleware setup"
 ```
 - Planning uses "think hard" level
@@ -177,7 +177,7 @@ Determine thinking level based on task characteristics:
 - Suggests next task but waits for user instruction
 
 ### Highly Complex Task - Single Task Focus
-```
+```bash
 /execute "Set up core messaging infrastructure"
 ```
 - Planning uses "think harder" level

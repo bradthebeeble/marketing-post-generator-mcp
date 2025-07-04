@@ -13,28 +13,23 @@ async function main(): Promise<void> {
     const config = getConfig();
     validateConfig(config);
 
-    // Initialize logger
-    const logger = createLogger(config.logging);
-    logger.info('Starting Marketing Post Generator MCP Server', {
-      mode: config.server.mode,
-      transport: config.server.transport,
-    });
+    console.log('Starting Marketing Post Generator MCP Server...');
 
     // Create and start the server
     const server = new MarketingPostGeneratorServer(config);
     await server.start();
 
-    logger.info('Marketing Post Generator MCP Server started successfully');
+    console.log('Marketing Post Generator MCP Server started successfully');
 
     // Handle graceful shutdown
     process.on('SIGINT', async () => {
-      logger.info('Received SIGINT, shutting down gracefully...');
+      console.log('Received SIGINT, shutting down gracefully...');
       await server.stop();
       process.exit(0);
     });
 
     process.on('SIGTERM', async () => {
-      logger.info('Received SIGTERM, shutting down gracefully...');
+      console.log('Received SIGTERM, shutting down gracefully...');
       await server.stop();
       process.exit(0);
     });

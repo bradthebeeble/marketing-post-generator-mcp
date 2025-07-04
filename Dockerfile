@@ -19,9 +19,10 @@ RUN npm prune --omit=dev
 # Production stage
 FROM node:18-alpine AS production
 
-# Security hardening
+# Security hardening and install curl for health checks
 RUN addgroup -g 1001 -S nodejs && \
-    adduser -S mcpserver -u 1001 -G nodejs
+    adduser -S mcpserver -u 1001 -G nodejs && \
+    apk add --no-cache curl
 
 WORKDIR /app
 
@@ -45,7 +46,7 @@ ENV POSTGEN_DATA_DIR=/data/.postgen
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+  CMD curl -f http://localhost:3000/health || exit 1
 
 EXPOSE 3000
 

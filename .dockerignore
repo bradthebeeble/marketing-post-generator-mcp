@@ -58,7 +58,6 @@ coverage
 
 # Nuxt.js build / generate output
 .nuxt
-dist
 
 # Gatsby files
 .cache/
@@ -101,7 +100,6 @@ docker-compose*
 
 # Testing
 .nyc_output
-coverage
 
 # Documentation
 docs/

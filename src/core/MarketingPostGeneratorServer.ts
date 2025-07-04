@@ -3,10 +3,13 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
+import { ListPromptsRequestSchema, GetPromptRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import { DIContainer } from './container/DIContainer.js';
 import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ClaudeService, IClaudeService } from '../services/claude/index.js';
+import { InitPrompt } from '../prompts/index.js';
+import { PromptFactory } from '../types/index.js';
 import winston from 'winston';
 import express from 'express';
 import cors from 'cors';
@@ -19,6 +22,7 @@ export class MarketingPostGeneratorServer {
   private readonly logger: winston.Logger;
   private httpServer?: express.Application;
   private httpTransport?: StreamableHTTPServerTransport;
+  private readonly prompts: Map<string, PromptFactory> = new Map();
 
   constructor(private readonly config: ServerConfig) {
     this.logger = createLogger(config.logging);
@@ -63,6 +67,9 @@ export class MarketingPostGeneratorServer {
         },
       }
     );
+
+    // Register prompts
+    this.registerPrompts();
 
     // Connect transport
     void this.mcpServer.connect(transport);
@@ -205,6 +212,86 @@ export class MarketingPostGeneratorServer {
       this.logger.error('Failed to start server', { error });
       throw error;
     }
+  }
+
+  private registerPrompts(): void {
+    try {
+      // Register all prompt instances
+      const promptInstances: PromptFactory[] = [
+        new InitPrompt(),
+        // Add more prompts here as they're implemented
+      ];
+      
+      // Store prompts in registry for O(1) lookup
+      promptInstances.forEach(prompt => {
+        this.prompts.set(prompt.getPromptName(), prompt);
+      });
+      
+      // Create prompt definitions for MCP registration
+      const promptDefinitions = promptInstances.map(prompt => prompt.createPrompt());
+      
+      this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
+        return {
+          prompts: promptDefinitions,
+        };
+      });
+
+      this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
+        const { name, arguments: args } = request.params;
+        
+        const promptFactory = this.prompts.get(name);
+        if (!promptFactory) {
+          throw new Error(`Unknown prompt: ${name}`);
+        }
+        
+        const promptDefinition = promptFactory.createPrompt();
+        
+        // Validate arguments based on prompt requirements
+        this.validatePromptArguments(name, args);
+        
+        // Execute the prompt
+        const result = await this.executePrompt(promptFactory, name, args);
+        
+        return {
+          description: promptDefinition.description,
+          arguments: promptDefinition.arguments,
+          messages: [
+            {
+              role: 'user' as const,
+              content: {
+                type: 'text' as const,
+                text: result,
+              },
+            },
+          ],
+        };
+      });
+
+      this.logger.info('Prompts registered successfully', {
+        registeredPrompts: promptDefinitions.map(p => p.name),
+      });
+    } catch (error) {
+      this.logger.error('Failed to register prompts', { error });
+      throw error;
+    }
+  }
+
+  private validatePromptArguments(name: string, args: any): void {
+    if (name === 'init') {
+      if (!args || typeof args !== 'object' || !('domain' in args) || typeof args.domain !== 'string') {
+        throw new Error('Init prompt requires a "domain" argument');
+      }
+    }
+    // Add validation for other prompts as they're implemented
+  }
+
+  private async executePrompt(promptFactory: PromptFactory, name: string, args: any): Promise<string> {
+    if (name === 'init') {
+      const initPrompt = promptFactory as InitPrompt;
+      return await initPrompt.executePrompt(args as { domain: string });
+    }
+    // Add execution logic for other prompts as they're implemented
+    throw new Error(`Prompt execution not implemented for: ${name}`);
   }
 
   async stop(): Promise<void> {

@@ -23,7 +23,8 @@
       "Bash(true)",
       "mcp__github__list_pull_requests",
       "mcp__coderabbitai__get_review_comments",
-      "mcp__coderabbitai__resolve_comment"
+      "mcp__coderabbitai__resolve_comment",
+      "mcp__github__merge_pull_request"
     ],
     "deny": []
   },

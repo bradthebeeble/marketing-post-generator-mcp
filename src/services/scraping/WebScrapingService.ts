@@ -48,6 +48,23 @@ export class WebScrapingService {
     });
   }
 
+  async fetchSingleBlogPost(url: string): Promise<BlogPost | null> {
+    try {
+      this.logger.info('Fetching single blog post', { url });
+      await this.respectRateLimit(this.defaultOptions.maxRequestsPerSecond);
+      const post = await this.fetchBlogPost(url);
+      return post;
+    } catch (error) {
+      this.logger.error('Failed to fetch single blog post', {
+        url,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error(
+        `Failed to fetch blog post from ${url}: ${error instanceof Error ? error.message : String(error)}`
+      );
+    }
+  }
+
   async sampleBlogPosts(domain: string, options: ScrapingOptions = {}): Promise<BlogPost[]> {
     const mergedOptions = { ...this.defaultOptions, ...options };
 

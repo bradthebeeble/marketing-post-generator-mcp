@@ -8,13 +8,14 @@ import {
   GetPromptRequestSchema,
   ListToolsRequestSchema,
   CallToolRequestSchema,
+  Tool,
 } from '@modelcontextprotocol/sdk/types.js';
 import { DIContainer } from './container/DIContainer.js';
 import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ClaudeService, IClaudeService } from '../services/claude/index.js';
 import { InitPrompt } from '../prompts/index.js';
-import { SampleTool } from '../tools/index.js';
+import { SampleTool, SummarizeTool } from '../tools/index.js';
 import { PromptFactory } from '../types/index.js';
 import winston from 'winston';
 import express from 'express';
@@ -29,7 +30,13 @@ export class MarketingPostGeneratorServer {
   private httpServer?: express.Application;
   private httpTransport?: StreamableHTTPServerTransport;
   private readonly prompts: Map<string, PromptFactory> = new Map();
-  private readonly tools: Map<string, SampleTool> = new Map();
+  private readonly tools: Map<
+    string,
+    {
+      getToolDefinition(): Tool;
+      execute(args: any, claudeService: IClaudeService): Promise<string>;
+    }
+  > = new Map();
 
   constructor(private readonly config: ServerConfig) {
     this.logger = createLogger(config.logging);
@@ -266,7 +273,7 @@ export class MarketingPostGeneratorServer {
 
         return {
           description: promptDefinition.description,
-          arguments: promptDefinition.arguments,
+          arguments: promptDefinition.parameters,
           messages: [
             {
               role: 'user' as const,
@@ -293,6 +300,7 @@ export class MarketingPostGeneratorServer {
       // Register all tool instances
       const toolInstances = [
         new SampleTool(),
+        new SummarizeTool(),
         // Add more tools here as they're implemented
       ];
 
@@ -323,7 +331,6 @@ export class MarketingPostGeneratorServer {
 
         // TODO: Add runtime validation using the tool's input schema
         // const toolDefinition = tool.getToolDefinition();
-        
         // Execute the tool with validated arguments
         const result = await tool.execute(args as Record<string, any>, claudeService);
 

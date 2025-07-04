@@ -250,13 +250,7 @@ export class MarketingPostGeneratorServer {
         this.validatePromptArguments(name, args);
         
         // Execute the prompt
-        let result: string;
-        if (name === 'init') {
-          const initPrompt = promptFactory as InitPrompt;
-          result = await initPrompt.executePrompt(args as { domain: string });
-        } else {
-          throw new Error(`Prompt execution not implemented for: ${name}`);
-        }
+        const result = await this.executePrompt(promptFactory, name, args);
         
         return {
           description: promptDefinition.description,
@@ -289,6 +283,15 @@ export class MarketingPostGeneratorServer {
       }
     }
     // Add validation for other prompts as they're implemented
+  }
+
+  private async executePrompt(promptFactory: PromptFactory, name: string, args: any): Promise<string> {
+    if (name === 'init') {
+      const initPrompt = promptFactory as InitPrompt;
+      return await initPrompt.executePrompt(args as { domain: string });
+    }
+    // Add execution logic for other prompts as they're implemented
+    throw new Error(`Prompt execution not implemented for: ${name}`);
   }
 
   async stop(): Promise<void> {

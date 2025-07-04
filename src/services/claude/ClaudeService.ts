@@ -145,9 +145,11 @@ export class ClaudeService implements IClaudeService {
         }
       } finally {
         // TODO: Implement proper usage tracking when available in stream events
-        // For now, we'll rely on rate limiting based on estimates
-        const estimatedTokens = Math.ceil(prompt.length / 4); // Rough estimation
-        this.updateRateLimit(estimatedTokens, estimatedTokens);
+        // For now, estimate input tokens only as output is unknown during streaming
+        const estimatedInputTokens = Math.ceil(prompt.length / 4); // Rough estimation
+        // Use conservative estimate for output tokens or track them separately
+        const estimatedOutputTokens = 0; // Will be updated when actual usage is available
+        this.updateRateLimit(estimatedInputTokens, estimatedOutputTokens);
       }
 
     } catch (error) {

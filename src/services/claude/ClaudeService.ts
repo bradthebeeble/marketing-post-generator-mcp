@@ -11,10 +11,10 @@ const CLAUDE_MODELS = {
 } as const;
 
 export class ClaudeService implements IClaudeService {
-  private client: Anthropic;
-  private config: ServerConfig['claude'];
-  private logger: winston.Logger;
-  private rateLimiter: {
+  private readonly client: Anthropic;
+  private readonly config: ServerConfig['claude'];
+  private readonly logger: winston.Logger;
+  private readonly rateLimiter: {
     requests: { count: number; resetTime: number };
     tokens: { count: number; resetTime: number };
   };
@@ -22,7 +22,7 @@ export class ClaudeService implements IClaudeService {
   constructor(config: ServerConfig['claude']) {
     this.config = config;
     this.logger = createLogger({ level: 'info', format: 'simple' });
-    
+
     this.client = new Anthropic({
       apiKey: config.apiKey,
       ...(config.baseUrl && { baseURL: config.baseUrl }),
@@ -43,9 +43,12 @@ export class ClaudeService implements IClaudeService {
     });
   }
 
-  async generateContent(prompt: string, options: ClaudeGenerationOptions = {}): Promise<GeneratedContent> {
+  async generateContent(
+    prompt: string,
+    options: ClaudeGenerationOptions = {}
+  ): Promise<GeneratedContent> {
     const startTime = Date.now();
-    
+
     try {
       await this.checkRateLimit();
 
@@ -94,7 +97,7 @@ export class ClaudeService implements IClaudeService {
       };
     } catch (error) {
       const duration = Date.now() - startTime;
-      
+
       this.logger.error('Failed to generate content', {
         error: error instanceof Error ? error.message : String(error),
         duration,
@@ -108,12 +111,17 @@ export class ClaudeService implements IClaudeService {
       } else if (error instanceof Anthropic.AuthenticationError) {
         throw new Error('Claude API authentication failed. Please check your API key.');
       } else {
-        throw new Error(`Claude service error: ${error instanceof Error ? error.message : String(error)}`);
+        throw new Error(
+          `Claude service error: ${error instanceof Error ? error.message : String(error)}`
+        );
       }
     }
   }
 
-  async *streamContent(prompt: string, options: ClaudeGenerationOptions = {}): AsyncGenerator<string, void, unknown> {
+  async *streamContent(
+    prompt: string,
+    options: ClaudeGenerationOptions = {}
+  ): AsyncGenerator<string, void, unknown> {
     try {
       await this.checkRateLimit();
 
@@ -151,14 +159,15 @@ export class ClaudeService implements IClaudeService {
         const estimatedOutputTokens = 0; // Will be updated when actual usage is available
         this.updateRateLimit(estimatedInputTokens, estimatedOutputTokens);
       }
-
     } catch (error) {
       this.logger.error('Failed to stream content', {
         error: error instanceof Error ? error.message : String(error),
         prompt: prompt.substring(0, 100) + '...',
       });
 
-      throw new Error(`Claude stream error: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Claude stream error: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -187,18 +196,24 @@ export class ClaudeService implements IClaudeService {
   async getRemainingQuota(): Promise<{ requests: number; tokens: number } | null> {
     try {
       const now = Date.now();
-      
+
       if (now > this.rateLimiter.requests.resetTime) {
         this.rateLimiter.requests = { count: 0, resetTime: now + 60000 };
       }
-      
+
       if (now > this.rateLimiter.tokens.resetTime) {
         this.rateLimiter.tokens = { count: 0, resetTime: now + 60000 };
       }
 
       return {
-        requests: Math.max(0, (this.config.rateLimit?.requestsPerMinute || 60) - this.rateLimiter.requests.count),
-        tokens: Math.max(0, (this.config.rateLimit?.tokensPerMinute || 50000) - this.rateLimiter.tokens.count),
+        requests: Math.max(
+          0,
+          (this.config.rateLimit?.requestsPerMinute || 60) - this.rateLimiter.requests.count
+        ),
+        tokens: Math.max(
+          0,
+          (this.config.rateLimit?.tokensPerMinute || 50000) - this.rateLimiter.tokens.count
+        ),
       };
     } catch (error) {
       this.logger.warn('Failed to get remaining quota', {
@@ -226,7 +241,7 @@ export class ClaudeService implements IClaudeService {
       if (error instanceof Anthropic.AuthenticationError) {
         return false;
       }
-      
+
       this.logger.warn('API key validation failed with non-auth error', {
         error: error instanceof Error ? error.message : String(error),
       });
@@ -236,17 +251,17 @@ export class ClaudeService implements IClaudeService {
 
   private async checkRateLimit(): Promise<void> {
     const now = Date.now();
-    
+
     if (now > this.rateLimiter.requests.resetTime) {
       this.rateLimiter.requests = { count: 0, resetTime: now + 60000 };
     }
-    
+
     if (now > this.rateLimiter.tokens.resetTime) {
       this.rateLimiter.tokens = { count: 0, resetTime: now + 60000 };
     }
 
     const maxRequests = this.config.rateLimit?.requestsPerMinute || 60;
-    
+
     if (this.rateLimiter.requests.count >= maxRequests) {
       const waitTime = this.rateLimiter.requests.resetTime - now;
       throw new Error(`Rate limit exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`);

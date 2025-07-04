@@ -238,7 +238,7 @@
         "id": 3,
         "title": "Claude Code Integration",
         "description": "Integrate the Claude Code library to enable agentic operations within the MCP server.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           1
         ],
@@ -259,7 +259,7 @@
             "id": 2,
             "title": "Install dependencies",
             "description": "Install Claude Code SDK and any other required dependencies",
-            "status": "in-progress",
+            "status": "done",
             "dependencies": [],
             "details": "<info added on 2025-07-04T13:42:40.962Z>\nSuccessfully installed @anthropic-ai/sdk version 0.56.0. Package added to dependencies in package.json. Verified installation with npm list. SDK is now ready for integration with the Claude API in subsequent development tasks.\n</info added on 2025-07-04T13:42:40.962Z>",
             "testStrategy": ""
@@ -277,7 +277,7 @@
             "id": 4,
             "title": "Claude service implementation",
             "description": "Implement the ClaudeService class with methods for text generation and other operations",
-            "status": "to-do",
+            "status": "done",
             "dependencies": [],
             "details": "",
             "testStrategy": ""
@@ -286,7 +286,7 @@
             "id": 5,
             "title": "Dependency Injection integration",
             "description": "Register the Claude service in the application's DI container",
-            "status": "to-do",
+            "status": "done",
             "dependencies": [],
             "details": "",
             "testStrategy": ""
@@ -295,7 +295,7 @@
             "id": 6,
             "title": "Testing",
             "description": "Create unit and integration tests for the Claude service implementation",
-            "status": "to-do",
+            "status": "done",
             "dependencies": [],
             "details": "",
             "testStrategy": ""
@@ -506,7 +506,7 @@
     ],
     "metadata": {
       "created": "2025-07-04T10:32:12.253Z",
-      "updated": "2025-07-04T13:44:31.921Z",
+      "updated": "2025-07-04T13:50:00.326Z",
       "description": "Tasks for master context"
     }
   }

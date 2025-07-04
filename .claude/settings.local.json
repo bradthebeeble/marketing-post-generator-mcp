@@ -15,7 +15,12 @@
       "mcp__task-master-ai__next_task",
       "mcp__task-master-ai__update_task",
       "mcp__task-master-ai__set_task_status",
-      "mcp__coderabbitai__get_coderabbit_reviews"
+      "mcp__coderabbitai__get_coderabbit_reviews",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(MCP_MODE=local npm run start)",
+      "Bash(pkill:*)",
+      "Bash(true)"
     ],
     "deny": []
   },

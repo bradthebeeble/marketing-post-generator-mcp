@@ -5,7 +5,6 @@
 import 'dotenv/config';
 import { MarketingPostGeneratorServer } from './core/MarketingPostGeneratorServer.js';
 import { getConfig, validateConfig } from './config/index.js';
-import { createLogger } from './utils/logger.js';
 
 async function main(): Promise<void> {
   try {

@@ -1,10 +1,29 @@
 // Configuration management for the Marketing Post Generator MCP
 
 import { ServerConfig } from '../types/index.js';
+import { randomUUID } from 'crypto';
 
 function parseBoolean(value: string | undefined, defaultValue: boolean): boolean {
   if (value === undefined) return defaultValue;
   return value.toLowerCase() === 'true';
+}
+
+function createHttpConfig() {
+  const config: any = {
+    enableJsonResponse: parseBoolean(process.env.MCP_HTTP_JSON_RESPONSE, false),
+    enableDnsRebindingProtection: parseBoolean(process.env.MCP_HTTP_DNS_PROTECTION, false),
+    sessionIdGenerator: () => randomUUID(),
+  };
+  
+  if (process.env.MCP_HTTP_ALLOWED_HOSTS) {
+    config.allowedHosts = process.env.MCP_HTTP_ALLOWED_HOSTS.split(',');
+  }
+  
+  if (process.env.MCP_HTTP_ALLOWED_ORIGINS) {
+    config.allowedOrigins = process.env.MCP_HTTP_ALLOWED_ORIGINS.split(',');
+  }
+  
+  return config;
 }
 
 export const DEFAULT_CONFIG: ServerConfig = {
@@ -13,6 +32,7 @@ export const DEFAULT_CONFIG: ServerConfig = {
     transport: (process.env.MCP_TRANSPORT as 'stdio' | 'http') || 'stdio',
     port: parseInt(process.env.MCP_PORT || '3000', 10),
     host: process.env.MCP_HOST || '0.0.0.0',
+    http: createHttpConfig(),
   },
   postgen: {
     dataDir: process.env.POSTGEN_DATA_DIR || '.postgen',
@@ -20,10 +40,32 @@ export const DEFAULT_CONFIG: ServerConfig = {
     cacheTtl: parseInt(process.env.POSTGEN_CACHE_TTL || '3600000', 10), // 1 hour
   },
   logging: {
-    level: process.env.LOG_LEVEL || 'info',
-    format: process.env.LOG_FORMAT || 'simple',
+    level: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug' | 'trace') || 'info',
+    format: (process.env.LOG_FORMAT as 'simple' | 'json' | 'pretty') || 'simple',
   },
 };
+
+function createRemoteHttpConfig() {
+  const config: any = {
+    enableJsonResponse: parseBoolean(process.env.MCP_HTTP_JSON_RESPONSE, false),
+    enableDnsRebindingProtection: parseBoolean(process.env.MCP_HTTP_DNS_PROTECTION, true),
+    sessionIdGenerator: () => randomUUID(),
+  };
+  
+  if (process.env.MCP_HTTP_ALLOWED_HOSTS) {
+    config.allowedHosts = process.env.MCP_HTTP_ALLOWED_HOSTS.split(',');
+  } else {
+    config.allowedHosts = ['localhost'];
+  }
+  
+  if (process.env.MCP_HTTP_ALLOWED_ORIGINS) {
+    config.allowedOrigins = process.env.MCP_HTTP_ALLOWED_ORIGINS.split(',');
+  } else {
+    config.allowedOrigins = ['*'];
+  }
+  
+  return config;
+}
 
 export const REMOTE_CONFIG: Partial<ServerConfig> = {
   server: {
@@ -31,9 +73,10 @@ export const REMOTE_CONFIG: Partial<ServerConfig> = {
     transport: 'http',
     port: parseInt(process.env.PORT || '3000', 10),
     host: process.env.HOST || '0.0.0.0',
+    http: createRemoteHttpConfig(),
   },
   cors: {
-    allowedOrigins: process.env.ALLOWED_ORIGINS?.split(',') || ['*'],
+    allowedOrigins: process.env.ALLOWED_ORIGINS ? process.env.ALLOWED_ORIGINS.split(',') : ['*'],
     allowedHeaders: ['mcp-session-id', 'content-type', 'authorization'],
     credentials: true,
   },
@@ -49,6 +92,10 @@ export function getConfig(): ServerConfig {
       server: {
         ...baseConfig.server,
         ...REMOTE_CONFIG.server,
+        http: {
+          ...baseConfig.server.http,
+          ...REMOTE_CONFIG.server?.http,
+        },
       },
     };
   }

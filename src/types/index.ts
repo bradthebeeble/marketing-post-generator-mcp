@@ -6,6 +6,13 @@ export interface ServerConfig {
     transport: 'stdio' | 'http';
     port?: number;
     host?: string;
+    http?: {
+      enableJsonResponse?: boolean;
+      enableDnsRebindingProtection?: boolean;
+      allowedHosts?: string[];
+      allowedOrigins?: string[];
+      sessionIdGenerator?: (() => string) | undefined;
+    };
   };
   postgen: {
     dataDir: string;

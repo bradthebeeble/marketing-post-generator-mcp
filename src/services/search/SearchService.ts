@@ -10,7 +10,7 @@ import winston from 'winston';
 export class SearchService {
   private readonly logger: winston.Logger;
   private adapter: ISearchAdapter;
-  private readonly fallbackAdapters: ISearchAdapter[] = [];
+  private readonly fallbackAdapters: ISearchAdapter[];
 
   constructor(
     primaryAdapter: ISearchAdapter,

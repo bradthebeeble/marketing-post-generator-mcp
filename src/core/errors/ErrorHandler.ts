@@ -1,4 +1,4 @@
-import { BaseError } from './BaseError';
+import { BaseError, ValidationError } from './BaseError';
 import { Logger } from '../../utils/logger';
 
 export interface ErrorContext {
@@ -82,7 +82,6 @@ export class ErrorHandler {
   }
 
   private convertToBaseError(error: Error, context: ErrorContext): BaseError {
-    const { ValidationError } = require('./BaseError');
 
     const errorContext = {
       ...context,

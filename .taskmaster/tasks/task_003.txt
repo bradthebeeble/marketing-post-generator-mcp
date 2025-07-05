@@ -1,0 +1,86 @@
+# Task ID: 3
+# Title: Claude Code Integration
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Integrate the Claude Code library to enable agentic operations within the MCP server.
+# Details:
+1. Import the Claude Code SDK
+2. Create a service class to manage Claude Code interactions
+3. Implement initialization with proper API key handling
+4. Create methods for common Claude operations (text generation, etc.)
+5. Set up proper error handling for API calls
+6. Implement retry logic for failed requests
+7. Add rate limiting to prevent API abuse
+8. Create utility functions for prompt construction
+
+```typescript
+import { Claude } from '@anthropic-ai/claude-code';
+
+export class ClaudeService {
+  private claude: Claude;
+  
+  constructor(apiKey: string) {
+    this.claude = new Claude({
+      apiKey,
+    });
+  }
+  
+  async generateContent(prompt: string, options?: any) {
+    try {
+      const response = await this.claude.complete({
+        prompt,
+        // other options
+      });
+      return response.completion;
+    } catch (error) {
+      // Handle error
+      console.error('Claude API error:', error);
+      throw new Error(`Failed to generate content: ${error.message}`);
+    }
+  }
+}
+```
+
+# Test Strategy:
+Create unit tests with mocked API responses to verify Claude Code integration works correctly. Test error handling and retry logic. Create integration tests that make actual API calls (with proper API key handling for CI/CD).
+
+# Subtasks:
+## 1. Create feature branch [done]
+### Dependencies: None
+### Description: Create and push feature branch 'feature/claude-integration' for Claude Code integration work
+### Details:
+
+
+## 2. Install dependencies [done]
+### Dependencies: None
+### Description: Install Claude Code SDK and any other required dependencies
+### Details:
+<info added on 2025-07-04T13:42:40.962Z>
+Successfully installed @anthropic-ai/sdk version 0.56.0. Package added to dependencies in package.json. Verified installation with npm list. SDK is now ready for integration with the Claude API in subsequent development tasks.
+</info added on 2025-07-04T13:42:40.962Z>
+
+## 3. Configuration updates [done]
+### Dependencies: None
+### Description: Update configuration files to support Claude API keys and other required settings
+### Details:
+
+
+## 4. Claude service implementation [done]
+### Dependencies: None
+### Description: Implement the ClaudeService class with methods for text generation and other operations
+### Details:
+
+
+## 5. Dependency Injection integration [done]
+### Dependencies: None
+### Description: Register the Claude service in the application's DI container
+### Details:
+
+
+## 6. Testing [done]
+### Dependencies: None
+### Description: Create unit and integration tests for the Claude service implementation
+### Details:
+
+

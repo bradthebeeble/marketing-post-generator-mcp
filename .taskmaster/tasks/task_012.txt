@@ -1,0 +1,109 @@
+# Task ID: 12
+# Title: Docker Containerization
+# Status: pending
+# Dependencies: 1, 2, 3
+# Priority: medium
+# Description: Implement Docker support for containerized deployment of the Marketing Post Generator MCP server.
+# Details:
+1. Create a Dockerfile for the application
+2. Set up docker-compose.yml for local development
+3. Configure environment variables for container deployment
+4. Implement volume mounting for persistent .postgen data
+5. Add health checks and container lifecycle management
+6. Create scripts for building and deploying containers
+
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
+
+# Copy application code
+COPY dist/ ./dist/
+
+# Create directory for .postgen data
+RUN mkdir -p /data/.postgen
+
+# Set environment variables
+ENV NODE_ENV=production
+ENV MCP_MODE=remote
+ENV MCP_PORT=3000
+ENV POSTGEN_DATA_DIR=/data/.postgen
+
+# Expose the port
+EXPOSE 3000
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
+
+# Start the application
+CMD ["node", "dist/index.js"]
+```
+
+```yaml
+# docker-compose.yml
+version: '3.8'
+
+services:
+  marketing-post-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MCP_MODE=remote
+      - MCP_PORT=3000
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - POSTGEN_DATA_DIR=/data/.postgen
+    volumes:
+      - postgen-data:/data/.postgen
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
+
+volumes:
+  postgen-data:
+```
+
+```typescript
+// src/config.ts
+export const config = {
+  server: {
+    mode: process.env.MCP_MODE || 'local',
+    port: parseInt(process.env.MCP_PORT || '3000', 10),
+  },
+  claude: {
+    apiKey: process.env.CLAUDE_API_KEY,
+  },
+  postgen: {
+    dataDir: process.env.POSTGEN_DATA_DIR || '.postgen',
+  },
+};
+```
+
+```bash
+#!/bin/bash
+# scripts/build-docker.sh
+set -e
+
+# Build TypeScript
+npm run build
+
+# Build Docker image
+docker build -t marketing-post-generator .
+
+echo "Docker image built successfully!"
+```
+
+# Test Strategy:
+Test Docker build process. Verify container starts correctly. Test volume mounting for persistent data. Verify environment variable configuration works. Test health check endpoint.

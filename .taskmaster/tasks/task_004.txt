@@ -1,0 +1,64 @@
+# Task ID: 4
+# Title: Init Prompt Implementation
+# Status: done
+# Dependencies: 2, 3
+# Priority: high
+# Description: Create the initialization prompt that sets up the .postgen directory structure when given a domain/URL of the main blog page.
+# Details:
+1. Create a prompt handler for the init command
+2. Implement logic to validate the provided domain/URL
+3. Create the .postgen directory if it doesn't exist
+4. Set up subdirectories for different data types (samples, summaries, content plans, etc.)
+5. Create initial configuration file with the domain information
+6. Add validation to ensure the directory was created successfully
+7. Implement proper error handling for file system operations
+
+```typescript
+import { MCPPrompt } from '@modelcontextprotocol/sdk';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+export const initPrompt: MCPPrompt = {
+  name: 'marketing_post_generator_mcp__init',
+  description: 'Initialize the Marketing Post Generator with a blog domain',
+  parameters: {
+    domain: {
+      type: 'string',
+      description: 'The domain/URL of the main blog page',
+    },
+  },
+  handler: async ({ domain }) => {
+    try {
+      // Validate domain
+      const url = new URL(domain);
+      
+      // Create .postgen directory structure
+      const postgenDir = path.join(process.cwd(), '.postgen');
+      await fs.mkdir(postgenDir, { recursive: true });
+      
+      // Create subdirectories
+      const dirs = ['samples', 'summaries', 'content-plans', 'posts'];
+      for (const dir of dirs) {
+        await fs.mkdir(path.join(postgenDir, dir), { recursive: true });
+      }
+      
+      // Create config file
+      const config = {
+        domain: url.hostname,
+        initialized: new Date().toISOString(),
+      };
+      await fs.writeFile(
+        path.join(postgenDir, 'config.json'),
+        JSON.stringify(config, null, 2)
+      );
+      
+      return `Successfully initialized .postgen directory for ${url.hostname}`;
+    } catch (error) {
+      throw new Error(`Failed to initialize: ${error.message}`);
+    }
+  },
+};
+```
+
+# Test Strategy:
+Test the init prompt with various valid and invalid domain inputs. Verify the .postgen directory structure is created correctly. Test error handling for invalid domains and file system errors.

@@ -1,0 +1,100 @@
+# Task ID: 11
+# Title: Tool and Prompt Registration System
+# Status: pending
+# Dependencies: 2, 3, 4, 5, 6, 7, 8, 9, 10
+# Priority: high
+# Description: Implement a system to register and manage all tools and prompts in the MCP server.
+# Details:
+1. Create a registry class to manage tools and prompts
+2. Implement registration methods for tools and prompts
+3. Add validation to ensure all tools and prompts meet the MCP specification
+4. Implement discovery mechanisms for clients to explore available tools and prompts
+5. Add versioning support for tools and prompts
+
+```typescript
+import { MCPTool, MCPPrompt, MCPServer } from '@modelcontextprotocol/sdk';
+
+export class ToolAndPromptRegistry {
+  private tools: Map<string, MCPTool> = new Map();
+  private prompts: Map<string, MCPPrompt> = new Map();
+  private server: MCPServer;
+  
+  constructor(server: MCPServer) {
+    this.server = server;
+  }
+  
+  registerTool(tool: MCPTool): void {
+    // Validate tool
+    this.validateTool(tool);
+    
+    // Register with the server
+    this.server.registerTool(tool);
+    
+    // Store in our registry
+    this.tools.set(tool.name, tool);
+    
+    console.log(`Registered tool: ${tool.name}`);
+  }
+  
+  registerPrompt(prompt: MCPPrompt): void {
+    // Validate prompt
+    this.validatePrompt(prompt);
+    
+    // Register with the server
+    this.server.registerPrompt(prompt);
+    
+    // Store in our registry
+    this.prompts.set(prompt.name, prompt);
+    
+    console.log(`Registered prompt: ${prompt.name}`);
+  }
+  
+  registerAll(tools: MCPTool[], prompts: MCPPrompt[]): void {
+    tools.forEach(tool => this.registerTool(tool));
+    prompts.forEach(prompt => this.registerPrompt(prompt));
+  }
+  
+  private validateTool(tool: MCPTool): void {
+    // Validate tool has required properties
+    if (!tool.name || !tool.description || !tool.handler) {
+      throw new Error(`Invalid tool: ${tool.name}. Missing required properties.`);
+    }
+    
+    // Validate tool name follows convention
+    if (!tool.name.startsWith('marketing_post_generator_mcp__')) {
+      throw new Error(`Invalid tool name: ${tool.name}. Must start with 'marketing_post_generator_mcp__'.`);
+    }
+  }
+  
+  private validatePrompt(prompt: MCPPrompt): void {
+    // Validate prompt has required properties
+    if (!prompt.name || !prompt.description || !prompt.handler) {
+      throw new Error(`Invalid prompt: ${prompt.name}. Missing required properties.`);
+    }
+    
+    // Validate prompt name follows convention
+    if (!prompt.name.startsWith('marketing_post_generator_mcp__')) {
+      throw new Error(`Invalid prompt name: ${prompt.name}. Must start with 'marketing_post_generator_mcp__'.`);
+    }
+  }
+  
+  getToolsInfo(): any[] {
+    return Array.from(this.tools.values()).map(tool => ({
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.parameters,
+    }));
+  }
+  
+  getPromptsInfo(): any[] {
+    return Array.from(this.prompts.values()).map(prompt => ({
+      name: prompt.name,
+      description: prompt.description,
+      parameters: prompt.parameters,
+    }));
+  }
+}
+```
+
+# Test Strategy:
+Test registration of tools and prompts. Test validation of tool and prompt properties. Test discovery mechanisms. Verify tools and prompts are correctly registered with the MCP server.

@@ -59,6 +59,14 @@ export const DEFAULT_CONFIG: ServerConfig = {
         timeout: parseInt(process.env.SEARCH_WEB_TIMEOUT || '30000', 10),
         userAgent: process.env.SEARCH_WEB_USER_AGENT || 'Mozilla/5.0 (compatible; MarketingPostGenerator/1.0)',
       },
+      'firecrawl': {
+        apiKey: process.env.FIRECRAWL_API_KEY || '',
+        baseUrl: process.env.FIRECRAWL_BASE_URL || 'https://api.firecrawl.dev',
+        rateLimit: parseInt(process.env.FIRECRAWL_RATE_LIMIT || '30', 10),
+        maxRetries: parseInt(process.env.FIRECRAWL_MAX_RETRIES || '3', 10),
+        timeoutMs: parseInt(process.env.FIRECRAWL_TIMEOUT || '30000', 10),
+        maxCreditsPerDay: parseInt(process.env.FIRECRAWL_MAX_CREDITS_PER_DAY || '1000', 10),
+      },
     },
   },
   logging: {

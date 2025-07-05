@@ -81,11 +81,13 @@ export async function createSearchService(
 /**
  * Register all built-in search adapters
  */
-export function registerBuiltInAdapters(): void {
-  // Import adapters here to avoid circular dependencies
-  const { WebScrapingAdapter } = require('./adapters/WebScrapingAdapter.js');
+export async function registerBuiltInAdapters(): Promise<void> {
+  // Import adapters dynamically to avoid circular dependencies
+  const { WebScrapingAdapter } = await import('./adapters/WebScrapingAdapter.js');
+  const { FirecrawlSearchAdapter } = await import('./adapters/FirecrawlSearchAdapter.js');
   
   SearchAdapterFactory.registerAdapter('web-scraping', WebScrapingAdapter);
+  SearchAdapterFactory.registerAdapter('firecrawl', FirecrawlSearchAdapter);
   
   const logger = createLogger({ level: 'info', format: 'simple' });
   logger.info('Built-in search adapters registered', {

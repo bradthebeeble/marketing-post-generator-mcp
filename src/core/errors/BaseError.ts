@@ -3,14 +3,19 @@
 export abstract class BaseError extends Error {
   abstract readonly code: string;
   abstract readonly statusCode: number;
+  public readonly timestamp: string;
+  public readonly severity: 'low' | 'medium' | 'high' | 'critical';
 
   constructor(
     message: string,
     public readonly context?: any,
-    public readonly cause?: Error
+    public readonly cause?: Error,
+    severity: 'low' | 'medium' | 'high' | 'critical' = 'medium'
   ) {
     super(message);
     this.name = this.constructor.name;
+    this.timestamp = new Date().toISOString();
+    this.severity = severity;
     Error.captureStackTrace(this, this.constructor);
   }
 
@@ -21,7 +26,30 @@ export abstract class BaseError extends Error {
       message: this.message,
       context: this.context,
       stack: this.stack,
+      timestamp: this.timestamp,
+      severity: this.severity,
+      statusCode: this.statusCode,
     };
+  }
+
+  withContext(additionalContext: Record<string, unknown>): BaseError {
+    const mergedContext = { ...this.context, ...additionalContext };
+    const ErrorClass = this.constructor as typeof BaseError;
+    const newError = new ErrorClass(this.message, mergedContext, this.cause, this.severity);
+    newError.stack = this.stack;
+    return newError;
+  }
+
+  isRetryable(): boolean {
+    return this.statusCode >= 500 || this.statusCode === 429 || this.statusCode === 503;
+  }
+
+  isUserError(): boolean {
+    return this.statusCode >= 400 && this.statusCode < 500 && this.statusCode !== 429;
+  }
+
+  isSystemError(): boolean {
+    return this.statusCode >= 500;
   }
 }
 

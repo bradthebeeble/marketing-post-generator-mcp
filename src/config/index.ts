@@ -73,6 +73,21 @@ export const DEFAULT_CONFIG: ServerConfig = {
     level: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug' | 'trace') || 'info',
     format: (process.env.LOG_FORMAT as 'simple' | 'json' | 'pretty') || 'simple',
   },
+  errorHandling: {
+    enableErrorReporting: parseBoolean(process.env.ERROR_REPORTING_ENABLED, true),
+    enableStackTrace: parseBoolean(process.env.ERROR_STACK_TRACE_ENABLED, true),
+    maxRecentErrors: parseInt(process.env.ERROR_MAX_RECENT || '100', 10),
+    excludeStackTraceForCodes: process.env.ERROR_EXCLUDE_STACK_CODES ? 
+      process.env.ERROR_EXCLUDE_STACK_CODES.split(',') : ['VALIDATION_ERROR', 'RATE_LIMIT_ERROR'],
+    notificationEnabled: parseBoolean(process.env.ERROR_NOTIFICATION_ENABLED, false),
+  },
+  rateLimit: {
+    enableRateLimit: parseBoolean(process.env.RATE_LIMIT_ENABLED, true),
+    defaultWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10), // 1 minute
+    defaultMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '60', 10),
+    enableStandardHeaders: parseBoolean(process.env.RATE_LIMIT_STANDARD_HEADERS, true),
+    enableLegacyHeaders: parseBoolean(process.env.RATE_LIMIT_LEGACY_HEADERS, false),
+  },
 };
 
 function createRemoteHttpConfig() {

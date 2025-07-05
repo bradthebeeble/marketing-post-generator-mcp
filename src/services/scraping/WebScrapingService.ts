@@ -284,7 +284,7 @@ export class WebScrapingService {
     }
   }
 
-  private extractTitle($: cheerio.Root): string | null {
+  private extractTitle($: cheerio.CheerioAPI): string | null {
     const selectors = [
       'article h1',
       '.post-title',
@@ -306,7 +306,7 @@ export class WebScrapingService {
     return null;
   }
 
-  private extractContent($: cheerio.Root): string | null {
+  private extractContent($: cheerio.CheerioAPI): string | null {
     const selectors = [
       'article .content',
       'article .post-content',
@@ -334,7 +334,7 @@ export class WebScrapingService {
     return null;
   }
 
-  private extractPublishedDate($: cheerio.Root): string | undefined {
+  private extractPublishedDate($: cheerio.CheerioAPI): string | undefined {
     const selectors = [
       '[property="article:published_time"]',
       '[name="article:published_time"]',
@@ -362,7 +362,7 @@ export class WebScrapingService {
     return undefined;
   }
 
-  private extractAuthor($: cheerio.Root): string | undefined {
+  private extractAuthor($: cheerio.CheerioAPI): string | undefined {
     const selectors = [
       '[property="article:author"]',
       '[name="author"]',
@@ -381,7 +381,7 @@ export class WebScrapingService {
     return undefined;
   }
 
-  private extractExcerpt($: cheerio.Root, content: string): string | undefined {
+  private extractExcerpt($: cheerio.CheerioAPI, content: string): string | undefined {
     const selectors = [
       '[property="og:description"]',
       '[name="description"]',

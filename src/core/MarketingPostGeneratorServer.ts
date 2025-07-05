@@ -60,7 +60,7 @@ export class MarketingPostGeneratorServer {
     });
 
     // Register built-in search adapters
-    registerBuiltInAdapters();
+    await registerBuiltInAdapters();
 
     // Register SearchService
     this.container.register<SearchService>('SearchService', () => {

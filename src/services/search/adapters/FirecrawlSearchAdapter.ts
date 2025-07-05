@@ -62,11 +62,7 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       });
 
       // Reset daily credits if it's a new day
-      const today = new Date().toDateString();
-      if (this.lastCreditReset !== today) {
-        this.dailyCreditsUsed = 0;
-        this.lastCreditReset = today;
-      }
+      this.checkDailyCreditReset();
     } catch (error) {
       this.logger.error('Failed to initialize Firecrawl adapter', {
         error: error instanceof Error ? error.message : String(error)
@@ -81,9 +77,9 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
     }
 
     try {
-      // Test API connectivity with a simple scrape of a reliable URL
+      // Test API connectivity with a simple scrape of Firecrawl's own docs
       await this.executeWithRetry(async () => {
-        const result = await this.client.scrapeUrl('https://httpbin.org/user-agent', {
+        const result = await this.client.scrapeUrl('https://docs.firecrawl.dev/introduction', {
           formats: ['markdown'],
           onlyMainContent: true
         });
@@ -119,7 +115,9 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
         throw new Error('No content returned from Firecrawl');
       }
 
-      this.trackCreditUsage(1); // Approximate credit usage
+      // Track credit usage - hardcoded to 1 since scrapeUrl API doesn't return actual credit usage
+      // This is a conservative estimate as single URL scraping typically consumes 1 credit
+      this.trackCreditUsage(1, true);
       
       this.logger.info('Content fetched successfully via Firecrawl', {
         url,
@@ -168,7 +166,13 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       const blogPosts = this.filterBlogPosts(crawlResult.data, baseUrl);
       const selectedPosts = this.selectRepresentativeSample(blogPosts, count);
 
-      this.trackCreditUsage(crawlResult.creditsUsed || selectedPosts.length);
+      // Track actual credit usage from API response, fallback to estimation
+      const actualCredits = crawlResult.creditsUsed;
+      if (actualCredits !== undefined) {
+        this.trackCreditUsage(actualCredits, false);
+      } else {
+        this.trackCreditUsage(selectedPosts.length, true);
+      }
 
       const results: DomainSampleResult[] = selectedPosts.map(post => ({
         url: post.metadata?.sourceURL || post.url || '',
@@ -216,7 +220,8 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
         return [];
       }
 
-      this.trackCreditUsage(searchResult.data.length);
+      // Track credit usage - estimate since search API response doesn't include actual credits
+      this.trackCreditUsage(searchResult.data.length, true);
 
       // Convert to standardized format
       const results: SearchResult[] = searchResult.data.map((item) => ({
@@ -317,21 +322,42 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
     }
   }
 
-  private trackCreditUsage(credits: number): void {
+  private trackCreditUsage(credits: number, isEstimated: boolean = false): void {
+    // Check if we need to reset daily credit counter
+    this.checkDailyCreditReset();
+    
     this.dailyCreditsUsed += credits;
     
     this.logger.debug('Firecrawl API usage tracked', {
       credits,
+      isEstimated,
       dailyUsage: this.dailyCreditsUsed,
       dailyLimit: this.config.maxCreditsPerDay
     });
+    
+    // Warn about estimation inaccuracy if using fallback tracking
+    if (isEstimated) {
+      this.logger.debug('Credit usage is estimated - actual usage may differ', {
+        estimatedCredits: credits
+      });
+    }
     
     // Warn when approaching limit
     if (this.dailyCreditsUsed > this.config.maxCreditsPerDay * 0.8) {
       this.logger.warn('Firecrawl credit usage approaching daily limit', {
         used: this.dailyCreditsUsed,
-        limit: this.config.maxCreditsPerDay
+        limit: this.config.maxCreditsPerDay,
+        hasEstimatedUsage: isEstimated
       });
+    }
+  }
+
+  private checkDailyCreditReset(): void {
+    const today = new Date().toDateString();
+    if (this.lastCreditReset !== today) {
+      this.dailyCreditsUsed = 0;
+      this.lastCreditReset = today;
+      this.logger.debug('Daily credit counter reset', { resetDate: today });
     }
   }
 
@@ -391,12 +417,39 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
     // Sort by content length (longer posts often have more substance)
     // and published date if available
     const sortedPosts = posts.sort((a, b) => {
-      const aDate = new Date(a.metadata?.publishedTime || a.metadata?.modifiedTime || '1970-01-01');
-      const bDate = new Date(b.metadata?.publishedTime || b.metadata?.modifiedTime || '1970-01-01');
+      // Safe date parsing with validation
+      const aDateStr = a.metadata?.publishedTime || a.metadata?.modifiedTime;
+      const bDateStr = b.metadata?.publishedTime || b.metadata?.modifiedTime;
       
-      // Prefer more recent posts, but also consider content length
-      const aScore = aDate.getTime() + (a.markdown?.length || 0) * 0.001;
-      const bScore = bDate.getTime() + (b.markdown?.length || 0) * 0.001;
+      let aDate = new Date('1970-01-01');
+      let bDate = new Date('1970-01-01');
+      
+      if (aDateStr) {
+        const parsedA = new Date(aDateStr);
+        if (!isNaN(parsedA.getTime())) {
+          aDate = parsedA;
+        }
+      }
+      
+      if (bDateStr) {
+        const parsedB = new Date(bDateStr);
+        if (!isNaN(parsedB.getTime())) {
+          bDate = parsedB;
+        }
+      }
+      
+      // Normalize scores to avoid scale mismatch
+      // Date score: days since epoch (reasonable scale 0-20000)
+      const aDays = Math.floor(aDate.getTime() / (1000 * 60 * 60 * 24));
+      const bDays = Math.floor(bDate.getTime() / (1000 * 60 * 60 * 24));
+      
+      // Content length score: length in thousands of characters (reasonable scale 0-50)
+      const aContentScore = (a.markdown?.length || 0) / 1000;
+      const bContentScore = (b.markdown?.length || 0) / 1000;
+      
+      // Combined score with balanced weighting
+      const aScore = aDays + aContentScore;
+      const bScore = bDays + bContentScore;
       
       return bScore - aScore;
     });

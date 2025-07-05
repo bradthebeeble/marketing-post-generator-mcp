@@ -1,16 +1,15 @@
 # Task ID: 10
-# Title: Blog Post Generator Tool Implementation
+# Title: Generate Tone Tool Implementation
 # Status: pending
-# Dependencies: 3, 4, 9
-# Priority: high
-# Description: Implement the tool for writing complete blog posts from scratch or based on narratives.
+# Dependencies: 3, 4, 5
+# Priority: medium
+# Description: Implement the 'generate_tone' tool that analyzes content to determine the tone of voice used in a blog or specific post.
 # Details:
-1. Create a tool definition for blog post generation
-2. Implement logic to use narratives or generate from scratch
-3. Use Claude Code to write complete blog posts
-4. Store the posts in the .postgen/posts directory
-5. Implement options for different post lengths and styles
-6. Add functionality to revise existing posts
+1. Create a tool definition for the tone generation functionality
+2. Implement logic to analyze either a specific post or use samples from a domain
+3. Use Claude Code to extract tone characteristics
+4. Store the tone analysis in the .postgen directory
+5. Implement options for different levels of detail in the analysis
 
 ```typescript
 import { MCPTool } from '@modelcontextprotocol/sdk';
@@ -18,46 +17,22 @@ import { ClaudeService } from './services/claude-service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export const blogPostGeneratorTool: MCPTool = {
-  name: 'marketing_post_generator_mcp__write_post',
-  description: 'Write a complete blog post from scratch or based on a narrative',
+export const generateToneTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__generate_tone',
+  description: 'Analyze content to determine the tone of voice used',
   parameters: {
-    narrativeId: {
+    source: {
       type: 'string',
-      description: 'ID of the narrative to base the post on (optional)',
-      required: false,
+      description: 'URL of a specific post or domain name',
     },
-    title: {
+    detailLevel: {
       type: 'string',
-      description: 'Title of the blog post (required if narrativeId not provided)',
-      required: false,
-    },
-    topic: {
-      type: 'string',
-      description: 'Topic of the blog post (required if narrativeId not provided)',
-      required: false,
-    },
-    keywords: {
-      type: 'array',
-      items: {
-        type: 'string',
-      },
-      description: 'Keywords for the blog post (optional)',
-      required: false,
-    },
-    wordCount: {
-      type: 'number',
-      description: 'Target word count for the post',
-      default: 1000,
-    },
-    style: {
-      type: 'string',
-      description: 'Writing style for the post',
-      enum: ['informative', 'persuasive', 'storytelling', 'technical', 'conversational'],
-      default: 'informative',
+      description: 'Level of detail in the analysis',
+      enum: ['basic', 'detailed', 'comprehensive'],
+      default: 'detailed',
     },
   },
-  handler: async ({ narrativeId, title, topic, keywords, wordCount, style }, { claudeService }) => {
+  handler: async ({ source, detailLevel }, { claudeService }) => {
     // Validate .postgen directory exists
     const postgenDir = path.join(process.cwd(), '.postgen');
     try {
@@ -66,117 +41,62 @@ export const blogPostGeneratorTool: MCPTool = {
       throw new Error('Please run the init prompt first');
     }
     
-    // Get domain from config
-    const config = await getPostgenConfig(postgenDir);
+    let content;
+    let sourceType;
     
-    // Get tone analysis for the domain
-    const toneAnalysis = await getExistingToneAnalysis(config.domain, postgenDir);
-    
-    let narrative = null;
-    
-    // If narrativeId is provided, get the narrative
-    if (narrativeId) {
-      narrative = await getNarrative(narrativeId, postgenDir);
-      title = narrative.title;
-      topic = narrative.post.topic;
-      keywords = narrative.post.keywords;
-    } else if (!title || !topic) {
-      throw new Error('Either narrativeId or both title and topic must be provided.');
+    // Determine if source is a URL or domain
+    try {
+      const url = new URL(source);
+      if (url.pathname === '/' || url.pathname === '') {
+        sourceType = 'domain';
+        // Get samples from the domain
+        content = await getSamplesFromDomain(url.hostname);
+      } else {
+        sourceType = 'post';
+        // Fetch specific post
+        const post = await fetchBlogPost(source);
+        content = post.content;
+      }
+    } catch (error) {
+      // Not a valid URL, assume it's a domain
+      sourceType = 'domain';
+      content = await getSamplesFromDomain(source);
     }
     
-    // Generate blog post with Claude
-    const prompt = buildBlogPostPrompt({
-      title,
-      topic,
-      keywords: keywords || [],
-      wordCount,
-      style,
+    // Generate tone analysis with Claude
+    const promptByDetailLevel = {
+      basic: `Analyze this content and describe the basic tone of voice used:\n\n${content}`,
+      detailed: `Analyze this content and provide a detailed description of the tone of voice, including formality, emotion, and style:\n\n${content}`,
+      comprehensive: `Provide a comprehensive analysis of the tone of voice in this content, including formality, emotion, style, word choice patterns, sentence structure tendencies, and unique voice characteristics:\n\n${content}`,
+    };
+    
+    const toneAnalysis = await claudeService.generateContent(promptByDetailLevel[detailLevel]);
+    
+    // Save the analysis
+    const result = {
+      source,
+      sourceType,
+      detailLevel,
       toneAnalysis,
-      narrative: narrative ? narrative.rawNarrative : null,
-      domain: config.domain,
-    });
-    
-    const blogPost = await claudeService.generateContent(prompt);
-    
-    // Save the blog post
-    const postId = Date.now();
-    const postPath = path.join(postgenDir, 'posts', `${postId}.md`);
-    await fs.mkdir(path.dirname(postPath), { recursive: true });
-    
-    // Add metadata as frontmatter
-    const frontmatter = `---
-title: ${title}
-topic: ${topic}
-keywords: ${(keywords || []).join(', ')}
-wordCount: ${wordCount}
-style: ${style}
-createdAt: ${new Date().toISOString()}
-narrativeId: ${narrativeId || null}
----\n\n`;
-    
-    await fs.writeFile(postPath, frontmatter + blogPost);
-    
-    // Save metadata separately
-    const metaPath = path.join(postgenDir, 'posts', `${postId}.json`);
-    const metadata = {
-      id: postId.toString(),
-      title,
-      topic,
-      keywords: keywords || [],
-      wordCount,
-      style,
-      narrativeId: narrativeId || null,
-      createdAt: new Date().toISOString(),
+      timestamp: new Date().toISOString(),
     };
     
-    await fs.writeFile(metaPath, JSON.stringify(metadata, null, 2));
+    const tonePath = path.join(postgenDir, 'tone-analysis', `${sourceType}-${Date.now()}.json`);
+    await fs.mkdir(path.dirname(tonePath), { recursive: true });
+    await fs.writeFile(tonePath, JSON.stringify(result, null, 2));
     
-    return {
-      ...metadata,
-      excerpt: blogPost.substring(0, 200) + '...',
-      filePath: postPath,
-    };
+    return result;
   },
 };
 
-function buildBlogPostPrompt(options) {
-  // Build a prompt for blog post generation based on options
-  let prompt = `Write a ${options.style} blog post about ${options.topic} with the title "${options.title}".`;
-  
-  if (options.keywords && options.keywords.length > 0) {
-    prompt += `\n\nInclude these keywords: ${options.keywords.join(', ')}`;
-  }
-  
-  prompt += `\n\nThe post should be approximately ${options.wordCount} words.`;
-  
-  if (options.toneAnalysis) {
-    prompt += `\n\nUse this tone of voice: ${options.toneAnalysis}`;
-  }
-  
-  if (options.narrative) {
-    prompt += `\n\nBase the post on this narrative outline:\n${options.narrative}`;
-  }
-  
-  prompt += `\n\nThis is for the blog at ${options.domain}.`;
-  
-  return prompt;
+async function getSamplesFromDomain(domain) {
+  // Implementation to get or fetch samples from a domain
 }
 
-async function getPostgenConfig(postgenDir) {
-  // Get the postgen config
-  const configPath = path.join(postgenDir, 'config.json');
-  const configData = await fs.readFile(configPath, 'utf-8');
-  return JSON.parse(configData);
-}
-
-async function getExistingToneAnalysis(domain, postgenDir) {
-  // Get existing tone analysis for the domain
-}
-
-async function getNarrative(narrativeId, postgenDir) {
-  // Get a narrative by ID
+async function fetchBlogPost(url) {
+  // Implementation to fetch a specific blog post
 }
 ```
 
 # Test Strategy:
-Test post generation with and without narratives. Test different styles and word counts. Verify posts are correctly stored in the .postgen directory. Test error handling for missing narratives or invalid parameters.
+Test with different source types (URL vs domain). Test different detail levels. Verify tone analysis results with mock Claude responses. Test error handling for invalid sources and network issues.

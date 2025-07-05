@@ -29,6 +29,11 @@ export interface ServerConfig {
       tokensPerMinute: number;
     };
   };
+  search: {
+    defaultAdapter: string;
+    fallbackAdapters: string[];
+    adapterConfigs: Record<string, Record<string, any>>;
+  };
   logging: {
     level: 'error' | 'warn' | 'info' | 'debug' | 'trace';
     format: 'simple' | 'json' | 'pretty';

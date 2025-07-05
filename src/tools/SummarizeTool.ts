@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { WebScrapingService } from '../services/scraping/WebScrapingService.js';
+import { SearchService } from '../services/search/index.js';
 import { IClaudeService } from '../services/claude/IClaudeService.js';
 import { createLogger } from '../utils/logger.js';
 import winston from 'winston';
@@ -20,11 +20,11 @@ export interface SummaryResult {
 
 export class SummarizeTool {
   private readonly logger: winston.Logger;
-  private readonly webScrapingService: WebScrapingService;
+  private readonly searchService: SearchService;
 
-  constructor(logger?: winston.Logger, webScrapingService?: WebScrapingService) {
+  constructor(searchService: SearchService, logger?: winston.Logger) {
     this.logger = logger || createLogger({ level: 'info', format: 'simple' });
-    this.webScrapingService = webScrapingService || new WebScrapingService();
+    this.searchService = searchService;
   }
 
   getToolDefinition(): Tool {
@@ -68,30 +68,32 @@ export class SummarizeTool {
         return this.formatResponse(existingSummary);
       }
 
-      // Fetch blog post content
+      // Fetch blog post content using SearchService
       this.logger.info('Fetching blog post content', { url });
-      const blogPost = await this.webScrapingService.fetchSingleBlogPost(url);
+      const content = await this.searchService.fetchContent(url);
 
-      if (!blogPost) {
+      if (!content) {
         throw new Error(
           `Unable to fetch content from URL: ${url}. Please verify the URL is accessible and contains blog content.`
         );
       }
 
-      this.logger.info('Blog post fetched successfully', {
+      this.logger.info('Blog post content fetched successfully', {
         url,
-        title: blogPost.title,
-        contentLength: blogPost.content.length,
+        contentLength: content.length,
       });
+
+      // Extract title from content (basic implementation)
+      const title = this.extractTitleFromContent(content, url);
 
       // Generate summary with Claude
       this.logger.info('Generating summary with Claude', { url });
-      const summary = await this.generateSummary(blogPost.title, blogPost.content, claudeService);
+      const summary = await this.generateSummary(title, content, claudeService);
 
       // Prepare result
       const result: SummaryResult = {
         url,
-        title: blogPost.title,
+        title,
         summary,
         timestamp: new Date().toISOString(),
       };
@@ -201,6 +203,42 @@ Instructions:
 - Capture the essence that would be valuable to someone deciding whether to read the full post
 
 Summary:`;
+  }
+
+  private extractTitleFromContent(content: string, url: string): string {
+    // Try to extract title from the first few lines of content
+    const lines = content.split('\n').slice(0, 10);
+    
+    for (const line of lines) {
+      const trimmed = line.trim();
+      // Look for lines that could be titles (not too short, not too long, first in content)
+      if (trimmed.length > 10 && trimmed.length < 200 && !trimmed.includes('  ')) {
+        return trimmed;
+      }
+    }
+    
+    // Fallback: extract from URL
+    try {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+      if (pathParts.length > 0) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart) {
+          // Convert URL slug to title
+          const title = lastPart
+            .replace(/[-_]/g, ' ')
+            .replace(/\.(html?|php|aspx?)$/i, '')
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+          return title;
+        }
+      }
+    } catch (error) {
+      this.logger.debug('Failed to extract title from URL', { url, error });
+    }
+    
+    return 'Untitled Post';
   }
 
   private async saveResult(result: SummaryResult, summaryPath: string): Promise<void> {

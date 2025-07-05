@@ -14,6 +14,7 @@ import { DIContainer } from './container/DIContainer.js';
 import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ClaudeService, IClaudeService } from '../services/claude/index.js';
+import { SearchService, createSearchService, registerBuiltInAdapters } from '../services/search/index.js';
 import { InitPrompt } from '../prompts/index.js';
 import { SampleTool, SummarizeTool } from '../tools/index.js';
 import { PromptFactory } from '../types/index.js';
@@ -41,11 +42,14 @@ export class MarketingPostGeneratorServer {
   constructor(private readonly config: ServerConfig) {
     this.logger = createLogger(config.logging);
     this.container = new DIContainer();
-    this.initializeDependencies();
+  }
+
+  async initialize(): Promise<void> {
+    await this.initializeDependencies();
     this.initializeMCPServer();
   }
 
-  private initializeDependencies(): void {
+  private async initializeDependencies(): Promise<void> {
     // Register core services with the DI container
     this.container.register('Logger', () => this.logger);
     this.container.register('Config', () => this.config);
@@ -54,6 +58,19 @@ export class MarketingPostGeneratorServer {
     this.container.register<IClaudeService>('ClaudeService', () => {
       return new ClaudeService(this.config.claude);
     });
+
+    // Register built-in search adapters
+    registerBuiltInAdapters();
+
+    // Register SearchService
+    this.container.register<SearchService>('SearchService', () => {
+      // Create SearchService from configuration - this will be initialized asynchronously
+      throw new Error('SearchService must be initialized asynchronously');
+    });
+
+    // Initialize SearchService asynchronously
+    const searchService = await createSearchService(this.config.search, this.logger);
+    this.container.register<SearchService>('SearchService', () => searchService);
 
     this.logger.info('Dependencies initialized', {
       registeredServices: this.container.getRegisteredTokens(),
@@ -297,10 +314,14 @@ export class MarketingPostGeneratorServer {
 
   private registerTools(): void {
     try {
-      // Register all tool instances
+      // Get services from DI container
+      const searchService = this.container.resolve<SearchService>('SearchService');
+      const logger = this.container.resolve<winston.Logger>('Logger');
+
+      // Register all tool instances with dependency injection
       const toolInstances = [
-        new SampleTool(),
-        new SummarizeTool(),
+        new SampleTool(searchService, logger),
+        new SummarizeTool(searchService, logger),
         // Add more tools here as they're implemented
       ];
 

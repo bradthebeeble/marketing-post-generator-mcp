@@ -1,0 +1,194 @@
+# Task ID: 18
+# Title: Documentation and Examples
+# Status: pending
+# Dependencies: 1, 2, 3, 4, 5, 6, 10, 11, 12, 13, 14, 15, 16, 17
+# Priority: low
+# Description: Create comprehensive documentation and examples for using the Marketing Post Generator MCP server.
+# Details:
+1. Create a README.md with installation and usage instructions
+2. Document all tools and prompts with examples
+3. Create example scripts for common workflows
+4. Add API documentation for programmatic usage
+5. Create a user guide for content writers
+
+```markdown
+# Marketing Post Generator MCP
+
+An MCP server that leverages AI to automate the creation of marketing blog posts.
+
+## Features
+
+- Sample blog posts from a domain to extract positioning, tone, and content strategy
+- Summarize individual blog posts
+- Create and manage content plans for future posts
+- Generate narratives and bullet points for upcoming posts
+- Write complete blog posts from scratch
+
+## Installation
+
+### Prerequisites
+
+- Node.js 18 or higher
+- npm or yarn
+- Claude API key
+
+### Install from npm
+
+```bash
+npm install marketing-post-generator-mcp
+```
+
+### Or clone and build from source
+
+```bash
+git clone https://github.com/yourusername/marketing-post-generator-mcp.git
+cd marketing-post-generator-mcp
+npm install
+npm run build
+```
+
+## Usage
+
+### Environment Variables
+
+Create a `.env` file with the following variables:
+
+```
+CLAUDE_API_KEY=your_api_key_here
+MCP_MODE=local  # or 'remote'
+MCP_PORT=3000   # for remote mode
+```
+
+### Start the server
+
+```bash
+npm start
+```
+
+### Using Docker
+
+```bash
+docker-compose up -d
+```
+
+## MCP Tools and Prompts
+
+### Initialization
+
+Before using any tools, initialize the generator with a blog domain:
+
+```
+/marketing_post_generator_mcp__init https://example.com/blog
+```
+
+### Sample Blog Posts
+
+Sample and analyze blog posts from a domain:
+
+```
+/marketing_post_generator_mcp__sample example.com 5
+```
+
+### Summarize a Blog Post
+
+Generate a summary of a specific blog post:
+
+```
+/marketing_post_generator_mcp__summarize https://example.com/blog/post-1
+```
+
+### Create a Content Plan
+
+Generate a content plan for future posts:
+
+```
+/marketing_post_generator_mcp__content_plan example.com month 4
+```
+
+### Generate a Post Narrative
+
+Create a narrative outline for a post from the content plan:
+
+```
+/marketing_post_generator_mcp__generate_narrative post-id-1 detailed
+```
+
+### Write a Blog Post
+
+Generate a complete blog post:
+
+```
+/marketing_post_generator_mcp__write_post --title="My Blog Post" --topic="AI Content Generation" --wordCount=1000
+```
+
+Or based on a narrative:
+
+```
+/marketing_post_generator_mcp__write_post --narrativeId=narrative-id-1 --wordCount=1500
+```
+
+## Example Workflows
+
+### Complete Content Generation Pipeline
+
+1. Initialize with your blog domain
+2. Sample existing content to understand tone and style
+3. Generate a content plan for the next month
+4. Create narratives for each post in the plan
+5. Generate complete blog posts from the narratives
+
+## API Documentation
+
+For programmatic usage, see the [API Documentation](docs/api.md).
+
+## License
+
+MIT
+```
+
+```typescript
+// examples/complete-workflow.ts
+import { MarketingPostGeneratorClient } from '../src/client';
+
+async function runWorkflow() {
+  // Create client
+  const client = new MarketingPostGeneratorClient({
+    mode: 'local',
+    claudeApiKey: process.env.CLAUDE_API_KEY,
+  });
+  
+  try {
+    // Initialize with a domain
+    await client.init('https://example.com/blog');
+    console.log('Initialized with domain');
+    
+    // Sample the domain
+    const sampleResult = await client.sample('example.com', 5);
+    console.log('Sample analysis:', sampleResult.analysis);
+    
+    // Create a content plan
+    const planResult = await client.createContentPlan('example.com', 'month', 4);
+    console.log('Content plan created with', planResult.plan.length, 'posts');
+    
+    // Generate a post from the first item in the plan
+    const firstPost = planResult.plan[0];
+    const postResult = await client.writePost({
+      title: firstPost.title,
+      topic: firstPost.topic,
+      keywords: firstPost.keywords,
+      wordCount: 1000,
+    });
+    
+    console.log('Generated post saved to:', postResult.filePath);
+  } catch (error) {
+    console.error('Workflow error:', error);
+  } finally {
+    await client.close();
+  }
+}
+
+runWorkflow().catch(console.error);
+```
+
+# Test Strategy:
+Verify documentation accuracy by following the instructions. Test example scripts to ensure they work as documented. Review API documentation for completeness and accuracy.

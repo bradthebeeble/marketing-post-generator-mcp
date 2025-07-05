@@ -14,8 +14,9 @@ async function main(): Promise<void> {
 
     console.log('Starting Marketing Post Generator MCP Server...');
 
-    // Create and start the server
+    // Create and initialize the server
     const server = new MarketingPostGeneratorServer(config);
+    await server.initialize();
     await server.start();
 
     console.log('Marketing Post Generator MCP Server started successfully');

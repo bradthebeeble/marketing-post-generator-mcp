@@ -188,7 +188,7 @@ export class RateLimitService {
     const now = Date.now();
     let activeRecords = 0;
     
-    for (const [key, record] of this.store) {
+    for (const [, record] of this.store) {
       if (now < record.resetTime) {
         activeRecords++;
       }

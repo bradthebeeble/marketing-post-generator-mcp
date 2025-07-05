@@ -1,260 +1,459 @@
 # Task ID: 7
-# Title: Implement Pluggable Search Adapter Architecture
-# Status: pending
-# Dependencies: 2, 5, 6, 16
+# Title: Implement Firecrawl Search Adapter
+# Status: done
+# Dependencies: 7
 # Priority: high
-# Description: Create a flexible search adapter architecture that replaces the current web scraping system with a clean interface for switching between different search providers while maintaining consistent tool behavior.
+# Description: Create a Firecrawl Search Adapter as the first concrete implementation of the pluggable search architecture, providing professional content extraction capabilities as an alternative to primitive web scraping.
 # Details:
-1. Create an abstract `ISearchAdapter` interface:
+1. Install and configure Firecrawl SDK/API client:
 ```typescript
-export interface ISearchAdapter {
-  // Fetch content from a single URL
-  fetchContent(url: string): Promise<string>;
-  
-  // Sample multiple pages from a domain
-  sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>>;
-  
-  // Get search results for a query
-  search(query: string, options?: SearchOptions): Promise<SearchResult[]>;
-  
-  // Initialize the adapter with configuration
-  initialize(config: Record<string, any>): Promise<void>;
-}
+import { FirecrawlClient } from '@mendable/firecrawl-js';
 
-export interface SearchOptions {
-  limit?: number;
-  offset?: number;
-  filters?: Record<string, any>;
-}
-
-export interface SearchResult {
-  url: string;
-  title: string;
-  snippet: string;
-}
+// Using the official Firecrawl SDK
+// No need to implement custom client as we're using the official SDK
 ```
 
-2. Implement the `SearchAdapterFactory` for managing provider instances:
+2. Create FirecrawlSearchAdapter class implementing the ISearchAdapter interface:
 ```typescript
-export class SearchAdapterFactory {
-  private static adapters: Map<string, new () => ISearchAdapter> = new Map();
+import { ISearchAdapter, SearchOptions, SearchResult } from './search-adapter-interface';
+import { FirecrawlClient } from '@mendable/firecrawl-js';
+import { logger } from '../services/logging-service';
+
+export class FirecrawlSearchAdapter implements ISearchAdapter {
+  private client: FirecrawlClient;
+  private config: FirecrawlAdapterConfig;
+  private dailyCreditsUsed: number = 0;
+  private lastRequestTime: number = 0;
   
-  // Register a new adapter implementation
-  public static registerAdapter(name: string, adapterClass: new () => ISearchAdapter): void {
-    this.adapters.set(name.toLowerCase(), adapterClass);
+  constructor(config: FirecrawlAdapterConfig) {
+    this.config = config;
+    this.client = new FirecrawlClient(config.apiKey);
   }
   
-  // Create an instance of a specific adapter
-  public static createAdapter(name: string): ISearchAdapter {
-    const AdapterClass = this.adapters.get(name.toLowerCase());
-    if (!AdapterClass) {
-      throw new Error(`Search adapter '${name}' not found`);
+  async initialize(): Promise<void> {
+    // Validate API key and connection
+    try {
+      // Test API connection
+      logger.info('Initializing Firecrawl search adapter');
+      await this.healthCheck();
+      logger.info('Firecrawl search adapter initialized successfully');
+    } catch (error) {
+      logger.error('Failed to initialize Firecrawl adapter', { error });
+      throw new Error('Firecrawl adapter initialization failed');
     }
-    return new AdapterClass();
   }
   
-  // List all available adapters
-  public static getAvailableAdapters(): string[] {
-    return Array.from(this.adapters.keys());
+  async healthCheck(): Promise<boolean> {
+    try {
+      // Simple API call to verify credentials and connectivity
+      await this.executeWithRetry(() => this.client.validateApiKey());
+      return true;
+    } catch (error) {
+      logger.error('Firecrawl health check failed', { error });
+      return false;
+    }
   }
-}
-```
-
-3. Create concrete adapter implementations for different providers:
-```typescript
-// Example implementation for FirecrawlAdapter
-export class FirecrawlAdapter implements ISearchAdapter {
-  private apiKey: string;
-  private baseUrl: string;
   
-  async initialize(config: Record<string, any>): Promise<void> {
-    this.apiKey = config.apiKey;
-    this.baseUrl = config.baseUrl || 'https://api.firecrawl.com/v1';
+  getName(): string {
+    return 'Firecrawl';
   }
   
   async fetchContent(url: string): Promise<string> {
-    // Implementation using Firecrawl API
-    // ...
+    logger.info('Fetching content via Firecrawl', { url });
+    
+    try {
+      const response = await this.executeWithRetry(() => 
+        this.client.scrape(url, { 
+          outputFormat: 'markdown',
+          includeMetadata: true,
+          filterAds: true,
+          filterNavigation: true
+        })
+      );
+      
+      if (!response.content) {
+        throw new Error('No content returned from Firecrawl');
+      }
+      
+      return response.content;
+    } catch (error) {
+      logger.error('Error fetching content from Firecrawl', { url, error });
+      throw new Error(`Failed to fetch content: ${error.message}`);
+    }
   }
   
   async sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>> {
-    // Implementation using Firecrawl API
-    // ...
+    logger.info('Sampling domain via Firecrawl', { domain, count });
+    
+    try {
+      // First discover blog posts on the domain using crawl API
+      const crawlResult = await this.executeWithRetry(() => 
+        this.client.crawl(domain, { 
+          maxUrls: Math.min(count * 2, 50), // Request more than needed to filter
+          maxDepth: 2,
+          contentTypeFilter: 'blog',
+          includeContent: true,
+          outputFormat: 'markdown'
+        })
+      );
+      
+      if (!crawlResult.pages || crawlResult.pages.length === 0) {
+        logger.warn('No blog posts found on domain', { domain });
+        return [];
+      }
+      
+      // Filter for blog posts with sufficient content
+      const blogPosts = crawlResult.pages.filter(page => 
+        page.contentType === 'blog' && 
+        page.content && 
+        page.content.length > 500
+      );
+      
+      // Select a representative sample
+      const selectedPages = this.selectRepresentativeSample(blogPosts, count);
+      
+      // Return in the expected format
+      return selectedPages.map(page => ({
+        url: page.url,
+        content: page.content
+      }));
+    } catch (error) {
+      logger.error('Error sampling domain with Firecrawl', { domain, error });
+      throw new Error(`Failed to sample domain: ${error.message}`);
+    }
+  }
+  
+  private selectRepresentativeSample(pages: any[], count: number): any[] {
+    // Sort by publication date (newest first) if available
+    const sortedPages = [...pages].sort((a, b) => {
+      if (a.publishDate && b.publishDate) {
+        return new Date(b.publishDate).getTime() - new Date(a.publishDate).getTime();
+      }
+      return 0;
+    });
+    
+    // Take a mix of recent and diverse content
+    // 60% most recent, 40% selected for content diversity
+    const recentCount = Math.ceil(count * 0.6);
+    const diverseCount = count - recentCount;
+    
+    const recentPages = sortedPages.slice(0, recentCount);
+    
+    // For diversity, select pages with different content lengths/topics
+    // This is a simple approach - could be enhanced with NLP for topic diversity
+    const remainingPages = sortedPages.slice(recentCount);
+    remainingPages.sort((a, b) => b.content.length - a.content.length);
+    
+    const diversePages = [];
+    const step = Math.max(1, Math.floor(remainingPages.length / diverseCount));
+    for (let i = 0; i < remainingPages.length && diversePages.length < diverseCount; i += step) {
+      diversePages.push(remainingPages[i]);
+    }
+    
+    return [...recentPages, ...diversePages].slice(0, count);
   }
   
   async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
-    // Implementation using Firecrawl API
-    // ...
+    logger.info('Searching via Firecrawl', { query, options });
+    
+    try {
+      const searchParams: any = {
+        limit: options?.limit || 10,
+        outputFormat: 'markdown'
+      };
+      
+      if (options?.domain) {
+        searchParams.siteFilter = options.domain;
+      }
+      
+      const response = await this.executeWithRetry(() => 
+        this.client.search(query, searchParams)
+      );
+      
+      // Convert to standardized format
+      return response.results.map(result => ({
+        url: result.url,
+        title: result.title,
+        snippet: result.snippet || result.summary,
+        publishDate: result.publishDate ? new Date(result.publishDate) : undefined,
+        author: result.author,
+        score: result.relevanceScore,
+        source: 'firecrawl'
+      }));
+    } catch (error) {
+      logger.error('Error searching with Firecrawl', { query, error });
+      throw new Error(`Search failed: ${error.message}`);
+    }
+  }
+  
+  private async executeWithRetry<T>(apiCall: () => Promise<T>): Promise<T> {
+    let attempts = 0;
+    
+    while (attempts < this.config.maxRetries) {
+      try {
+        // Enforce rate limiting
+        await this.enforceRateLimit();
+        
+        // Execute the API call
+        const result = await apiCall();
+        
+        // Track credit usage from API response
+        const creditsUsed = (result as any).creditsUsed || 1;
+        this.trackCreditUsage(creditsUsed);
+        
+        return result;
+      } catch (error) {
+        attempts++;
+        
+        if (this.isRetryableError(error) && attempts < this.config.maxRetries) {
+          const delay = this.calculateBackoff(attempts);
+          logger.warn('Retrying Firecrawl API call', { attempts, delay, error: error.message });
+          await new Promise(resolve => setTimeout(resolve, delay));
+        } else {
+          throw error;
+        }
+      }
+    }
+    
+    throw new Error(`Failed after ${this.config.maxRetries} attempts`);
+  }
+  
+  private isRetryableError(error: any): boolean {
+    // Determine if error is retryable (rate limits, temporary server issues)
+    return error.status === 429 || error.status >= 500 || 
+           error.message?.includes('timeout') || 
+           error.message?.includes('rate limit');
+  }
+  
+  private calculateBackoff(attempt: number): number {
+    // Exponential backoff with jitter
+    return Math.min(1000 * Math.pow(2, attempt) + Math.random() * 1000, 30000);
+  }
+  
+  private async enforceRateLimit(): Promise<void> {
+    const now = Date.now();
+    const minInterval = (60 * 1000) / this.config.rateLimit;
+    
+    if (now - this.lastRequestTime < minInterval) {
+      const delay = minInterval - (now - this.lastRequestTime);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+    
+    this.lastRequestTime = Date.now();
+  }
+  
+  private trackCreditUsage(credits: number): void {
+    this.dailyCreditsUsed += credits;
+    this.logApiUsage('api_call', credits);
+    
+    // Check if we've exceeded our daily limit
+    if (this.config.maxCreditsPerDay && this.dailyCreditsUsed >= this.config.maxCreditsPerDay) {
+      logger.error('Firecrawl daily credit limit exceeded', {
+        used: this.dailyCreditsUsed,
+        limit: this.config.maxCreditsPerDay
+      });
+      throw new Error('Daily API credit limit exceeded');
+    }
+  }
+  
+  private logApiUsage(endpoint: string, credits: number) {
+    logger.info('Firecrawl API usage', { 
+      endpoint, 
+      credits,
+      dailyUsage: this.dailyCreditsUsed,
+      dailyLimit: this.config.maxCreditsPerDay
+    });
+    
+    // Emit metrics or events if needed
+    if (this.config.maxCreditsPerDay && 
+        this.dailyCreditsUsed > this.config.maxCreditsPerDay * 0.8) {
+      logger.warn('Firecrawl credit usage approaching daily limit', {
+        used: this.dailyCreditsUsed,
+        limit: this.config.maxCreditsPerDay
+      });
+    }
   }
 }
 
-// Similar implementations for PerplexityAdapter, SerpApiAdapter, etc.
+interface FirecrawlAdapterConfig {
+  apiKey: string;
+  rateLimit: number; // Requests per minute
+  maxRetries: number;
+  timeoutMs: number;
+  maxCreditsPerDay?: number; // Optional credit management
+}
 ```
 
-4. Implement the `SearchService` as the main service layer:
+3. Register the adapter with the factory:
 ```typescript
-export class SearchService {
-  private adapter: ISearchAdapter;
-  private fallbackAdapters: ISearchAdapter[] = [];
-  
-  constructor(primaryAdapter: ISearchAdapter, fallbacks: ISearchAdapter[] = []) {
-    this.adapter = primaryAdapter;
-    this.fallbackAdapters = fallbacks;
-  }
-  
-  // Set a new primary adapter
-  public setAdapter(adapter: ISearchAdapter): void {
-    this.adapter = adapter;
-  }
-  
-  // Add a fallback adapter
-  public addFallbackAdapter(adapter: ISearchAdapter): void {
-    this.fallbackAdapters.push(adapter);
-  }
-  
-  // Fetch content with fallback support
-  public async fetchContent(url: string): Promise<string> {
-    try {
-      return await this.adapter.fetchContent(url);
-    } catch (error) {
-      // Try fallback adapters
-      for (const fallbackAdapter of this.fallbackAdapters) {
-        try {
-          return await fallbackAdapter.fetchContent(url);
-        } catch (fallbackError) {
-          // Continue to next fallback
-        }
-      }
-      throw new Error(`Failed to fetch content from ${url} with all adapters`);
-    }
-  }
-  
-  // Sample domain with fallback support
-  public async sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>> {
-    try {
-      return await this.adapter.sampleDomain(domain, count);
-    } catch (error) {
-      // Try fallback adapters
-      for (const fallbackAdapter of this.fallbackAdapters) {
-        try {
-          return await fallbackAdapter.sampleDomain(domain, count);
-        } catch (fallbackError) {
-          // Continue to next fallback
-        }
-      }
-      throw new Error(`Failed to sample domain ${domain} with all adapters`);
-    }
-  }
-  
-  // Search with fallback support
-  public async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
-    try {
-      return await this.adapter.search(query, options);
-    } catch (error) {
-      // Try fallback adapters
-      for (const fallbackAdapter of this.fallbackAdapters) {
-        try {
-          return await fallbackAdapter.search(query, options);
-        } catch (fallbackError) {
-          // Continue to next fallback
-        }
-      }
-      throw new Error(`Failed to search for "${query}" with all adapters`);
+// In search-adapter-factory.ts
+import { ISearchAdapter } from './search-adapter-interface';
+import { FirecrawlSearchAdapter } from './firecrawl-search-adapter';
+import { WebScrapingAdapter } from './web-scraping-adapter';
+
+export class SearchAdapterFactory {
+  static createAdapter(type: string, config: any): ISearchAdapter {
+    switch (type.toLowerCase()) {
+      case 'firecrawl':
+        return new FirecrawlSearchAdapter({
+          apiKey: config.apiKey,
+          rateLimit: config.rateLimit || 30, // Default to 30 requests per minute
+          maxRetries: config.maxRetries || 3,
+          timeoutMs: config.timeoutMs || 10000,
+          maxCreditsPerDay: config.maxCreditsPerDay
+        });
+      case 'webscraping':
+        return new WebScrapingAdapter(config);
+      // Other adapter types will be added here
+      default:
+        throw new Error(`Unknown search adapter type: ${type}`);
     }
   }
 }
 ```
 
-5. Add configuration system for selecting and configuring search adapters:
+4. Add configuration in the application settings:
 ```typescript
-// In config.ts or similar
+// In config.ts
 export interface SearchConfig {
   defaultAdapter: string;
-  fallbackAdapters: string[];
-  adapterConfigs: Record<string, Record<string, any>>;
+  adapters: {
+    firecrawl?: {
+      apiKey: string;
+      rateLimit?: number;
+      maxRetries?: number;
+      timeoutMs?: number;
+      maxCreditsPerDay?: number;
+    };
+    webscraping?: {
+      // WebScrapingAdapter config
+    };
+    // Other adapters
+  };
 }
 
 // Example configuration
 const searchConfig: SearchConfig = {
   defaultAdapter: 'firecrawl',
-  fallbackAdapters: ['serpapi', 'perplexity'],
-  adapterConfigs: {
+  adapters: {
     firecrawl: {
       apiKey: process.env.FIRECRAWL_API_KEY,
-      baseUrl: 'https://api.firecrawl.com/v1'
+      rateLimit: 30,
+      maxRetries: 3,
+      timeoutMs: 15000,
+      maxCreditsPerDay: 1000
     },
-    serpapi: {
-      apiKey: process.env.SERPAPI_API_KEY
-    },
-    perplexity: {
-      apiKey: process.env.PERPLEXITY_API_KEY
+    webscraping: {
+      // WebScrapingAdapter config
     }
   }
 };
-
-// Factory function to create SearchService from config
-export async function createSearchService(config: SearchConfig): Promise<SearchService> {
-  // Create and initialize primary adapter
-  const primaryAdapter = SearchAdapterFactory.createAdapter(config.defaultAdapter);
-  await primaryAdapter.initialize(config.adapterConfigs[config.defaultAdapter] || {});
-  
-  // Create and initialize fallback adapters
-  const fallbackAdapters: ISearchAdapter[] = [];
-  for (const adapterName of config.fallbackAdapters) {
-    const adapter = SearchAdapterFactory.createAdapter(adapterName);
-    await adapter.initialize(config.adapterConfigs[adapterName] || {});
-    fallbackAdapters.push(adapter);
-  }
-  
-  return new SearchService(primaryAdapter, fallbackAdapters);
-}
 ```
 
-6. Update existing tools to use the new SearchService:
+5. Add unit tests for the Firecrawl adapter:
 ```typescript
-// In the sample tool implementation
-import { SearchService } from './services/search-service';
+// In firecrawl-search-adapter.test.ts
+import { FirecrawlSearchAdapter } from './firecrawl-search-adapter';
+import { FirecrawlClient } from '@mendable/firecrawl-js';
 
-export class SampleTool implements MCPTool {
-  private searchService: SearchService;
+// Mock the Firecrawl SDK
+jest.mock('@mendable/firecrawl-js');
+
+describe('FirecrawlSearchAdapter', () => {
+  let adapter: FirecrawlSearchAdapter;
+  let mockClient: jest.Mocked<FirecrawlClient>;
   
-  constructor(searchService: SearchService) {
-    this.searchService = searchService;
-  }
+  beforeEach(() => {
+    // Setup mock client
+    mockClient = new FirecrawlClient('test-api-key') as jest.Mocked<FirecrawlClient>;
+    (FirecrawlClient as jest.Mock).mockImplementation(() => mockClient);
+    
+    // Create adapter with test config
+    adapter = new FirecrawlSearchAdapter({
+      apiKey: 'test-api-key',
+      rateLimit: 60,
+      maxRetries: 2,
+      timeoutMs: 5000
+    });
+  });
   
-  async execute(params: any): Promise<any> {
-    const domain = params.domain;
-    const count = params.count || 5;
+  test('initialize should validate API key', async () => {
+    mockClient.validateApiKey.mockResolvedValue({ valid: true });
     
-    // Use the search service instead of direct web scraping
-    const samples = await this.searchService.sampleDomain(domain, count);
+    await expect(adapter.initialize()).resolves.not.toThrow();
+    expect(mockClient.validateApiKey).toHaveBeenCalled();
+  });
+  
+  test('fetchContent should return markdown content', async () => {
+    const mockContent = '# Test Content\n\nThis is test content';
+    mockClient.scrape.mockResolvedValue({
+      content: mockContent,
+      url: 'https://example.com',
+      creditsUsed: 1
+    });
     
-    // Process samples and continue with analysis
-    // ...
-  }
-}
-```
-
-7. Register the adapters during application startup:
-```typescript
-// In app.ts or similar
-import { SearchAdapterFactory } from './services/search-adapter-factory';
-import { FirecrawlAdapter } from './adapters/firecrawl-adapter';
-import { SerpApiAdapter } from './adapters/serpapi-adapter';
-import { PerplexityAdapter } from './adapters/perplexity-adapter';
-
-// Register all available adapters
-SearchAdapterFactory.registerAdapter('firecrawl', FirecrawlAdapter);
-SearchAdapterFactory.registerAdapter('serpapi', SerpApiAdapter);
-SearchAdapterFactory.registerAdapter('perplexity', PerplexityAdapter);
-
-// Create search service from configuration
-const searchService = await createSearchService(searchConfig);
-
-// Use the search service when creating tools
-const sampleTool = new SampleTool(searchService);
-const summarizeTool = new SummarizeTool(searchService);
-// ...
+    const result = await adapter.fetchContent('https://example.com');
+    
+    expect(result).toBe(mockContent);
+    expect(mockClient.scrape).toHaveBeenCalledWith('https://example.com', expect.any(Object));
+  });
+  
+  test('search should return formatted results', async () => {
+    const mockResults = {
+      results: [
+        {
+          url: 'https://example.com/page1',
+          title: 'Test Page 1',
+          snippet: 'This is a test snippet',
+          publishDate: '2023-01-01T00:00:00Z',
+          author: 'Test Author',
+          relevanceScore: 0.95
+        }
+      ],
+      creditsUsed: 2
+    };
+    
+    mockClient.search.mockResolvedValue(mockResults);
+    
+    const results = await adapter.search('test query', { limit: 10 });
+    
+    expect(results).toHaveLength(1);
+    expect(results[0]).toEqual({
+      url: 'https://example.com/page1',
+      title: 'Test Page 1',
+      snippet: 'This is a test snippet',
+      publishDate: new Date('2023-01-01T00:00:00Z'),
+      author: 'Test Author',
+      score: 0.95,
+      source: 'firecrawl'
+    });
+  });
+  
+  test('should respect rate limits', async () => {
+    // Mock successful API calls
+    mockClient.scrape.mockResolvedValue({ content: 'test', creditsUsed: 1 });
+    
+    // Set a very low rate limit for testing
+    adapter = new FirecrawlSearchAdapter({
+      apiKey: 'test-api-key',
+      rateLimit: 2, // 2 requests per minute
+      maxRetries: 2,
+      timeoutMs: 5000
+    });
+    
+    const start = Date.now();
+    
+    // Make 3 requests - the third should be delayed
+    await adapter.fetchContent('https://example.com/1');
+    await adapter.fetchContent('https://example.com/2');
+    await adapter.fetchContent('https://example.com/3');
+    
+    const duration = Date.now() - start;
+    
+    // With a rate limit of 2 per minute, the third request should be delayed by at least 30 seconds
+    expect(duration).toBeGreaterThanOrEqual(30000);
+  });
+});
 ```
 
 # Test Strategy:

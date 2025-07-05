@@ -51,7 +51,11 @@ export class ErrorHandlingService {
   }
 
   // Get service metrics
-  getMetrics() {
+  getMetrics(): {
+    errorMetrics: ErrorMetrics;
+    summaryReport: ReturnType<ErrorReporter['generateSummaryReport']>;
+    healthStatus: boolean;
+  } {
     return {
       errorMetrics: this.errorReporter.getMetrics(),
       summaryReport: this.errorReporter.generateSummaryReport(),

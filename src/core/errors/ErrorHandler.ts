@@ -5,6 +5,7 @@ export interface ErrorContext {
   requestId?: string;
   userId?: string;
   operation?: string;
+  executionTime?: number;
   metadata?: Record<string, unknown>;
 }
 
@@ -74,12 +75,8 @@ export class ErrorHandler {
       timestamp: new Date().toISOString(),
     };
 
-    // Create new instance with enhanced context
-    const ErrorClass = error.constructor as typeof BaseError;
-    const enhancedError = new ErrorClass(error.message, enhancedContext, error.cause);
-    
-    // Preserve stack trace
-    enhancedError.stack = error.stack;
+    // Use the withContext method instead of direct constructor call
+    const enhancedError = error.withContext(enhancedContext);
     
     return enhancedError;
   }

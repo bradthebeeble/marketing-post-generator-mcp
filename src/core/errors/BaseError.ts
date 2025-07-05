@@ -32,16 +32,16 @@ export abstract class BaseError extends Error {
     };
   }
 
-  withContext(additionalContext: Record<string, unknown>): BaseError {
+  withContext(additionalContext: Record<string, unknown>): this {
     const mergedContext = { ...this.context, ...additionalContext };
-    const ErrorClass = this.constructor as typeof BaseError;
-    const newError = new ErrorClass(this.message, mergedContext, this.cause, this.severity);
+    const ErrorConstructor = this.constructor as new (message: string, context?: any, cause?: Error, severity?: 'low' | 'medium' | 'high' | 'critical') => this;
+    const newError = new ErrorConstructor(this.message, mergedContext, this.cause, this.severity);
     newError.stack = this.stack;
     return newError;
   }
 
   isRetryable(): boolean {
-    return this.statusCode >= 500 || this.statusCode === 429 || this.statusCode === 503;
+    return this.statusCode >= 500 || this.statusCode === 429;
   }
 
   isUserError(): boolean {
@@ -90,4 +90,29 @@ export class ToolExecutionError extends BaseError {
   ) {
     super(message, { toolName }, cause);
   }
+}
+
+export class NetworkError extends BaseError {
+  readonly code = 'NETWORK_ERROR';
+  readonly statusCode = 503;
+}
+
+export class TimeoutError extends BaseError {
+  readonly code = 'TIMEOUT_ERROR';
+  readonly statusCode = 504;
+}
+
+export class AuthenticationError extends BaseError {
+  readonly code = 'AUTHENTICATION_ERROR';
+  readonly statusCode = 401;
+}
+
+export class AuthorizationError extends BaseError {
+  readonly code = 'AUTHORIZATION_ERROR';
+  readonly statusCode = 403;
+}
+
+export class ConfigurationError extends BaseError {
+  readonly code = 'CONFIGURATION_ERROR';
+  readonly statusCode = 500;
 }

@@ -2,10 +2,12 @@
 
 import winston from 'winston';
 
-interface LoggingConfig {
+export interface LoggingConfig {
   level: string;
   format: string;
 }
+
+export type Logger = winston.Logger;
 
 export function createLogger(config: LoggingConfig): winston.Logger {
   const logger = winston.createLogger({

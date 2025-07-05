@@ -96,7 +96,12 @@ export class ErrorReporter {
   }
 
   private generateReportId(): string {
-    return `err_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    // Use crypto.randomUUID() for guaranteed uniqueness (Node.js 14.17+)
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return `err_${Date.now()}_${crypto.randomUUID()}`;
+    }
+    // Fallback to improved random string generation
+    return `err_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   }
 
   private shouldIncludeStack(error: BaseError): boolean {

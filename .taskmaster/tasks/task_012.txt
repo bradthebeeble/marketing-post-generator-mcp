@@ -1,15 +1,15 @@
 # Task ID: 12
-# Title: Post Narrative Generator Tool Implementation
+# Title: Generate Tone Tool Implementation
 # Status: pending
-# Dependencies: 3, 4, 11
+# Dependencies: 3, 4, 5
 # Priority: medium
-# Description: Implement the tool for generating narratives and bullet points for upcoming posts based on the content plan.
+# Description: Implement the 'generate_tone' tool that analyzes content to determine the tone of voice used in a blog or specific post.
 # Details:
-1. Create a tool definition for narrative generation
-2. Implement logic to read from the content plan
-3. Use Claude Code to generate detailed narratives and bullet points
-4. Store the narratives in the .postgen/narratives directory
-5. Implement options for different narrative styles and levels of detail
+1. Create a tool definition for the tone generation functionality
+2. Implement logic to analyze either a specific post or use samples from a domain
+3. Use Claude Code to extract tone characteristics
+4. Store the tone analysis in the .postgen directory
+5. Implement options for different levels of detail in the analysis
 
 ```typescript
 import { MCPTool } from '@modelcontextprotocol/sdk';
@@ -17,22 +17,22 @@ import { ClaudeService } from './services/claude-service';
 import * as fs from 'fs/promises';
 import * as path from 'path';
 
-export const narrativeGeneratorTool: MCPTool = {
-  name: 'marketing_post_generator_mcp__generate_narrative',
-  description: 'Generate narratives and bullet points for upcoming posts',
+export const generateToneTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__generate_tone',
+  description: 'Analyze content to determine the tone of voice used',
   parameters: {
-    postId: {
+    source: {
       type: 'string',
-      description: 'ID of the post from the content plan',
+      description: 'URL of a specific post or domain name',
     },
-    style: {
+    detailLevel: {
       type: 'string',
-      description: 'Style of the narrative',
-      enum: ['concise', 'detailed', 'storytelling'],
+      description: 'Level of detail in the analysis',
+      enum: ['basic', 'detailed', 'comprehensive'],
       default: 'detailed',
     },
   },
-  handler: async ({ postId, style }, { claudeService }) => {
+  handler: async ({ source, detailLevel }, { claudeService }) => {
     // Validate .postgen directory exists
     const postgenDir = path.join(process.cwd(), '.postgen');
     try {
@@ -41,77 +41,62 @@ export const narrativeGeneratorTool: MCPTool = {
       throw new Error('Please run the init prompt first');
     }
     
-    // Get the latest content plan
-    const contentPlan = await getLatestContentPlan(postgenDir);
-    if (!contentPlan) {
-      throw new Error('No content plan found. Please create a content plan first.');
+    let content;
+    let sourceType;
+    
+    // Determine if source is a URL or domain
+    try {
+      const url = new URL(source);
+      if (url.pathname === '/' || url.pathname === '') {
+        sourceType = 'domain';
+        // Get samples from the domain
+        content = await getSamplesFromDomain(url.hostname);
+      } else {
+        sourceType = 'post';
+        // Fetch specific post
+        const post = await fetchBlogPost(source);
+        content = post.content;
+      }
+    } catch (error) {
+      // Not a valid URL, assume it's a domain
+      sourceType = 'domain';
+      content = await getSamplesFromDomain(source);
     }
     
-    // Find the post in the content plan
-    const post = contentPlan.plan.find(p => p.id === postId);
-    if (!post) {
-      throw new Error(`Post with ID ${postId} not found in the content plan.`);
-    }
-    
-    // Get tone analysis for the domain
-    const toneAnalysis = await getExistingToneAnalysis(contentPlan.domain, postgenDir);
-    
-    // Generate narrative with Claude
-    const prompt = buildNarrativePrompt({
-      post,
-      style,
-      toneAnalysis,
-      domain: contentPlan.domain,
-    });
-    
-    const narrative = await claudeService.generateContent(prompt);
-    
-    // Parse the narrative into a structured format
-    const structuredNarrative = parseNarrative(narrative);
-    
-    // Save the narrative
-    const narrativePath = path.join(postgenDir, 'narratives', `${postId}-${Date.now()}.json`);
-    await fs.mkdir(path.dirname(narrativePath), { recursive: true });
-    
-    const result = {
-      postId,
-      title: post.title,
-      style,
-      narrative: structuredNarrative,
-      rawNarrative: narrative,
-      createdAt: new Date().toISOString(),
+    // Generate tone analysis with Claude
+    const promptByDetailLevel = {
+      basic: `Analyze this content and describe the basic tone of voice used:\n\n${content}`,
+      detailed: `Analyze this content and provide a detailed description of the tone of voice, including formality, emotion, and style:\n\n${content}`,
+      comprehensive: `Provide a comprehensive analysis of the tone of voice in this content, including formality, emotion, style, word choice patterns, sentence structure tendencies, and unique voice characteristics:\n\n${content}`,
     };
     
-    await fs.writeFile(narrativePath, JSON.stringify(result, null, 2));
+    const toneAnalysis = await claudeService.generateContent(promptByDetailLevel[detailLevel]);
+    
+    // Save the analysis
+    const result = {
+      source,
+      sourceType,
+      detailLevel,
+      toneAnalysis,
+      timestamp: new Date().toISOString(),
+    };
+    
+    const tonePath = path.join(postgenDir, 'tone-analysis', `${sourceType}-${Date.now()}.json`);
+    await fs.mkdir(path.dirname(tonePath), { recursive: true });
+    await fs.writeFile(tonePath, JSON.stringify(result, null, 2));
     
     return result;
   },
 };
 
-function buildNarrativePrompt(options) {
-  // Build a prompt for narrative generation based on options
-  const stylePrompts = {
-    concise: 'Create a concise outline with key bullet points',
-    detailed: 'Create a detailed narrative with main sections and supporting points',
-    storytelling: 'Create a narrative that tells a compelling story around the topic',
-  };
-  
-  return `Based on the following post idea from the content plan for ${options.domain}:\n\nTitle: ${options.post.title}\nTopic: ${options.post.topic}\nKeywords: ${options.post.keywords.join(', ')}\n\n${stylePrompts[options.style]}\n\nUse this tone of voice: ${options.toneAnalysis}`;
+async function getSamplesFromDomain(domain) {
+  // Implementation to get or fetch samples from a domain
 }
 
-function parseNarrative(rawNarrative) {
-  // Parse the raw narrative into a structured format
-  // This could extract sections, bullet points, etc.
-}
-
-async function getLatestContentPlan(postgenDir) {
-  // Get the latest content plan
-}
-
-async function getExistingToneAnalysis(domain, postgenDir) {
-  // Get existing tone analysis for the domain
+async function fetchBlogPost(url) {
+  // Implementation to fetch a specific blog post
 }
 ```
 
 # Test Strategy:
-Test narrative generation with different styles. Test with different post types from the content plan. Verify narratives are correctly stored in the .postgen directory. Test error handling for missing content plans or invalid post IDs.
+Test with different source types (URL vs domain). Test different detail levels. Verify tone analysis results with mock Claude responses. Test error handling for invalid sources and network issues.

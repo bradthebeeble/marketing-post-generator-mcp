@@ -200,4 +200,60 @@ export function validateConfig(config: ServerConfig): void {
       throw new Error('Claude rate limit tokens per minute must be between 1000 and 1000000');
     }
   }
+
+  // Validate errorHandling configuration
+  if (config.errorHandling) {
+    if (typeof config.errorHandling.enableErrorReporting !== 'boolean') {
+      throw new Error('Error handling enableErrorReporting must be a boolean');
+    }
+    if (typeof config.errorHandling.enableStackTrace !== 'boolean') {
+      throw new Error('Error handling enableStackTrace must be a boolean');
+    }
+    if (typeof config.errorHandling.notificationEnabled !== 'boolean') {
+      throw new Error('Error handling notificationEnabled must be a boolean');
+    }
+    if (
+      config.errorHandling.maxRecentErrors !== undefined &&
+      (config.errorHandling.maxRecentErrors < 10 || config.errorHandling.maxRecentErrors > 1000)
+    ) {
+      throw new Error('Error handling maxRecentErrors must be between 10 and 1000');
+    }
+    if (
+      config.errorHandling.excludeStackTraceForCodes !== undefined &&
+      !Array.isArray(config.errorHandling.excludeStackTraceForCodes)
+    ) {
+      throw new Error('Error handling excludeStackTraceForCodes must be an array');
+    }
+    if (
+      config.errorHandling.excludeStackTraceForCodes &&
+      config.errorHandling.excludeStackTraceForCodes.some(code => typeof code !== 'string')
+    ) {
+      throw new Error('Error handling excludeStackTraceForCodes must be an array of strings');
+    }
+  }
+
+  // Validate rateLimit configuration
+  if (config.rateLimit) {
+    if (typeof config.rateLimit.enableRateLimit !== 'boolean') {
+      throw new Error('Rate limit enableRateLimit must be a boolean');
+    }
+    if (typeof config.rateLimit.enableStandardHeaders !== 'boolean') {
+      throw new Error('Rate limit enableStandardHeaders must be a boolean');
+    }
+    if (typeof config.rateLimit.enableLegacyHeaders !== 'boolean') {
+      throw new Error('Rate limit enableLegacyHeaders must be a boolean');
+    }
+    if (
+      config.rateLimit.defaultWindowMs !== undefined &&
+      (config.rateLimit.defaultWindowMs < 1000 || config.rateLimit.defaultWindowMs > 3600000)
+    ) {
+      throw new Error('Rate limit defaultWindowMs must be between 1000ms (1 second) and 3600000ms (1 hour)');
+    }
+    if (
+      config.rateLimit.defaultMaxRequests !== undefined &&
+      (config.rateLimit.defaultMaxRequests < 1 || config.rateLimit.defaultMaxRequests > 10000)
+    ) {
+      throw new Error('Rate limit defaultMaxRequests must be between 1 and 10000');
+    }
+  }
 }

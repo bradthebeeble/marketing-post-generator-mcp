@@ -71,15 +71,22 @@ export class LoggingMiddleware {
       const originalSend = res.send;
       const originalJson = res.json;
       let responseBody: any;
+      let responseCaptured = false;
 
-      res.send = function(body) {
-        responseBody = body;
-        return originalSend.call(this, body);
+      res.send = function(body): Response {
+        if (!responseCaptured) {
+          responseBody = body;
+          responseCaptured = true;
+        }
+        return originalSend.call(this, body) as Response;
       };
 
-      res.json = function(body) {
-        responseBody = body;
-        return originalJson.call(this, body);
+      res.json = function(body): Response {
+        if (!responseCaptured) {
+          responseBody = body;
+          responseCaptured = true;
+        }
+        return originalJson.call(this, body) as Response;
       };
 
       // Log response when request finishes
@@ -185,7 +192,12 @@ export class LoggingMiddleware {
     // Handle string bodies
     if (typeof body === 'string') {
       if (body.length > (this.config.maxBodyLength || 10000)) {
-        return body.substring(0, this.config.maxBodyLength) + '... [TRUNCATED]';
+        // Ensure we don't break multi-byte characters
+        const maxLength = this.config.maxBodyLength || 10000;
+        const truncated = body.slice(0, maxLength);
+        // Remove any incomplete multi-byte sequence at the end
+        const cleanTruncated = truncated.replace(/[\uD800-\uDBFF]$/, '');
+        return cleanTruncated + '... [TRUNCATED]';
       }
       return body;
     }
@@ -204,7 +216,7 @@ export class LoggingMiddleware {
       // Truncate large objects
       const stringified = JSON.stringify(sanitized);
       if (stringified.length > (this.config.maxBodyLength || 10000)) {
-        return JSON.stringify(sanitized).substring(0, this.config.maxBodyLength) + '... [TRUNCATED]';
+        return stringified.substring(0, this.config.maxBodyLength) + '... [TRUNCATED]';
       }
       
       return sanitized;

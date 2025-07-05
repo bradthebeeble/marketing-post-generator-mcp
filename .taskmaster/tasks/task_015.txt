@@ -1,109 +1,182 @@
 # Task ID: 15
-# Title: Docker Containerization
+# Title: Blog Post Generator Tool Implementation
 # Status: pending
-# Dependencies: 1, 2, 3
-# Priority: medium
-# Description: Implement Docker support for containerized deployment of the Marketing Post Generator MCP server.
+# Dependencies: 3, 4, 14
+# Priority: high
+# Description: Implement the tool for writing complete blog posts from scratch or based on narratives.
 # Details:
-1. Create a Dockerfile for the application
-2. Set up docker-compose.yml for local development
-3. Configure environment variables for container deployment
-4. Implement volume mounting for persistent .postgen data
-5. Add health checks and container lifecycle management
-6. Create scripts for building and deploying containers
-
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy application code
-COPY dist/ ./dist/
-
-# Create directory for .postgen data
-RUN mkdir -p /data/.postgen
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV MCP_MODE=remote
-ENV MCP_PORT=3000
-ENV POSTGEN_DATA_DIR=/data/.postgen
-
-# Expose the port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
-
-# Start the application
-CMD ["node", "dist/index.js"]
-```
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  marketing-post-generator:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - MCP_MODE=remote
-      - MCP_PORT=3000
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
-      - POSTGEN_DATA_DIR=/data/.postgen
-    volumes:
-      - postgen-data:/data/.postgen
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-
-volumes:
-  postgen-data:
-```
+1. Create a tool definition for blog post generation
+2. Implement logic to use narratives or generate from scratch
+3. Use Claude Code to write complete blog posts
+4. Store the posts in the .postgen/posts directory
+5. Implement options for different post lengths and styles
+6. Add functionality to revise existing posts
 
 ```typescript
-// src/config.ts
-export const config = {
-  server: {
-    mode: process.env.MCP_MODE || 'local',
-    port: parseInt(process.env.MCP_PORT || '3000', 10),
+import { MCPTool } from '@modelcontextprotocol/sdk';
+import { ClaudeService } from './services/claude-service';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+export const blogPostGeneratorTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__write_post',
+  description: 'Write a complete blog post from scratch or based on a narrative',
+  parameters: {
+    narrativeId: {
+      type: 'string',
+      description: 'ID of the narrative to base the post on (optional)',
+      required: false,
+    },
+    title: {
+      type: 'string',
+      description: 'Title of the blog post (required if narrativeId not provided)',
+      required: false,
+    },
+    topic: {
+      type: 'string',
+      description: 'Topic of the blog post (required if narrativeId not provided)',
+      required: false,
+    },
+    keywords: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      description: 'Keywords for the blog post (optional)',
+      required: false,
+    },
+    wordCount: {
+      type: 'number',
+      description: 'Target word count for the post',
+      default: 1000,
+    },
+    style: {
+      type: 'string',
+      description: 'Writing style for the post',
+      enum: ['informative', 'persuasive', 'storytelling', 'technical', 'conversational'],
+      default: 'informative',
+    },
   },
-  claude: {
-    apiKey: process.env.CLAUDE_API_KEY,
-  },
-  postgen: {
-    dataDir: process.env.POSTGEN_DATA_DIR || '.postgen',
+  handler: async ({ narrativeId, title, topic, keywords, wordCount, style }, { claudeService }) => {
+    // Validate .postgen directory exists
+    const postgenDir = path.join(process.cwd(), '.postgen');
+    try {
+      await fs.access(postgenDir);
+    } catch (error) {
+      throw new Error('Please run the init prompt first');
+    }
+    
+    // Get domain from config
+    const config = await getPostgenConfig(postgenDir);
+    
+    // Get tone analysis for the domain
+    const toneAnalysis = await getExistingToneAnalysis(config.domain, postgenDir);
+    
+    let narrative = null;
+    
+    // If narrativeId is provided, get the narrative
+    if (narrativeId) {
+      narrative = await getNarrative(narrativeId, postgenDir);
+      title = narrative.title;
+      topic = narrative.post.topic;
+      keywords = narrative.post.keywords;
+    } else if (!title || !topic) {
+      throw new Error('Either narrativeId or both title and topic must be provided.');
+    }
+    
+    // Generate blog post with Claude
+    const prompt = buildBlogPostPrompt({
+      title,
+      topic,
+      keywords: keywords || [],
+      wordCount,
+      style,
+      toneAnalysis,
+      narrative: narrative ? narrative.rawNarrative : null,
+      domain: config.domain,
+    });
+    
+    const blogPost = await claudeService.generateContent(prompt);
+    
+    // Save the blog post
+    const postId = Date.now();
+    const postPath = path.join(postgenDir, 'posts', `${postId}.md`);
+    await fs.mkdir(path.dirname(postPath), { recursive: true });
+    
+    // Add metadata as frontmatter
+    const frontmatter = `---
+title: ${title}
+topic: ${topic}
+keywords: ${(keywords || []).join(', ')}
+wordCount: ${wordCount}
+style: ${style}
+createdAt: ${new Date().toISOString()}
+narrativeId: ${narrativeId || null}
+---\n\n`;
+    
+    await fs.writeFile(postPath, frontmatter + blogPost);
+    
+    // Save metadata separately
+    const metaPath = path.join(postgenDir, 'posts', `${postId}.json`);
+    const metadata = {
+      id: postId.toString(),
+      title,
+      topic,
+      keywords: keywords || [],
+      wordCount,
+      style,
+      narrativeId: narrativeId || null,
+      createdAt: new Date().toISOString(),
+    };
+    
+    await fs.writeFile(metaPath, JSON.stringify(metadata, null, 2));
+    
+    return {
+      ...metadata,
+      excerpt: blogPost.substring(0, 200) + '...',
+      filePath: postPath,
+    };
   },
 };
-```
 
-```bash
-#!/bin/bash
-# scripts/build-docker.sh
-set -e
+function buildBlogPostPrompt(options) {
+  // Build a prompt for blog post generation based on options
+  let prompt = `Write a ${options.style} blog post about ${options.topic} with the title "${options.title}".`;
+  
+  if (options.keywords && options.keywords.length > 0) {
+    prompt += `\n\nInclude these keywords: ${options.keywords.join(', ')}`;
+  }
+  
+  prompt += `\n\nThe post should be approximately ${options.wordCount} words.`;
+  
+  if (options.toneAnalysis) {
+    prompt += `\n\nUse this tone of voice: ${options.toneAnalysis}`;
+  }
+  
+  if (options.narrative) {
+    prompt += `\n\nBase the post on this narrative outline:\n${options.narrative}`;
+  }
+  
+  prompt += `\n\nThis is for the blog at ${options.domain}.`;
+  
+  return prompt;
+}
 
-# Build TypeScript
-npm run build
+async function getPostgenConfig(postgenDir) {
+  // Get the postgen config
+  const configPath = path.join(postgenDir, 'config.json');
+  const configData = await fs.readFile(configPath, 'utf-8');
+  return JSON.parse(configData);
+}
 
-# Build Docker image
-docker build -t marketing-post-generator .
+async function getExistingToneAnalysis(domain, postgenDir) {
+  // Get existing tone analysis for the domain
+}
 
-echo "Docker image built successfully!"
+async function getNarrative(narrativeId, postgenDir) {
+  // Get a narrative by ID
+}
 ```
 
 # Test Strategy:
-Test Docker build process. Verify container starts correctly. Test volume mounting for persistent data. Verify environment variable configuration works. Test health check endpoint.
+Test post generation with and without narratives. Test different styles and word counts. Verify posts are correctly stored in the .postgen directory. Test error handling for missing narratives or invalid parameters.

@@ -528,7 +528,7 @@
         "id": 8,
         "title": "Implement Firecrawl Search Adapter",
         "description": "Create a Firecrawl Search Adapter as the first concrete implementation of the pluggable search architecture, providing professional content extraction capabilities as an alternative to primitive web scraping.",
-        "status": "in-progress",
+        "status": "done",
         "dependencies": [
           "7"
         ],
@@ -554,7 +554,7 @@
     ],
     "metadata": {
       "created": "2025-07-04T10:32:12.253Z",
-      "updated": "2025-07-05T07:18:24.356Z",
+      "updated": "2025-07-05T07:28:38.592Z",
       "description": "Tasks for master context"
     }
   }

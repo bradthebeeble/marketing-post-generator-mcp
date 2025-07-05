@@ -1,109 +1,117 @@
 # Task ID: 12
-# Title: Docker Containerization
+# Title: Post Narrative Generator Tool Implementation
 # Status: pending
-# Dependencies: 1, 2, 3
+# Dependencies: 3, 4, 11
 # Priority: medium
-# Description: Implement Docker support for containerized deployment of the Marketing Post Generator MCP server.
+# Description: Implement the tool for generating narratives and bullet points for upcoming posts based on the content plan.
 # Details:
-1. Create a Dockerfile for the application
-2. Set up docker-compose.yml for local development
-3. Configure environment variables for container deployment
-4. Implement volume mounting for persistent .postgen data
-5. Add health checks and container lifecycle management
-6. Create scripts for building and deploying containers
-
-```dockerfile
-# Dockerfile
-FROM node:18-alpine
-
-WORKDIR /app
-
-# Install dependencies
-COPY package*.json ./
-RUN npm ci --only=production
-
-# Copy application code
-COPY dist/ ./dist/
-
-# Create directory for .postgen data
-RUN mkdir -p /data/.postgen
-
-# Set environment variables
-ENV NODE_ENV=production
-ENV MCP_MODE=remote
-ENV MCP_PORT=3000
-ENV POSTGEN_DATA_DIR=/data/.postgen
-
-# Expose the port
-EXPOSE 3000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
-
-# Start the application
-CMD ["node", "dist/index.js"]
-```
-
-```yaml
-# docker-compose.yml
-version: '3.8'
-
-services:
-  marketing-post-generator:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=production
-      - MCP_MODE=remote
-      - MCP_PORT=3000
-      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
-      - POSTGEN_DATA_DIR=/data/.postgen
-    volumes:
-      - postgen-data:/data/.postgen
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 5s
-
-volumes:
-  postgen-data:
-```
+1. Create a tool definition for narrative generation
+2. Implement logic to read from the content plan
+3. Use Claude Code to generate detailed narratives and bullet points
+4. Store the narratives in the .postgen/narratives directory
+5. Implement options for different narrative styles and levels of detail
 
 ```typescript
-// src/config.ts
-export const config = {
-  server: {
-    mode: process.env.MCP_MODE || 'local',
-    port: parseInt(process.env.MCP_PORT || '3000', 10),
+import { MCPTool } from '@modelcontextprotocol/sdk';
+import { ClaudeService } from './services/claude-service';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+export const narrativeGeneratorTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__generate_narrative',
+  description: 'Generate narratives and bullet points for upcoming posts',
+  parameters: {
+    postId: {
+      type: 'string',
+      description: 'ID of the post from the content plan',
+    },
+    style: {
+      type: 'string',
+      description: 'Style of the narrative',
+      enum: ['concise', 'detailed', 'storytelling'],
+      default: 'detailed',
+    },
   },
-  claude: {
-    apiKey: process.env.CLAUDE_API_KEY,
-  },
-  postgen: {
-    dataDir: process.env.POSTGEN_DATA_DIR || '.postgen',
+  handler: async ({ postId, style }, { claudeService }) => {
+    // Validate .postgen directory exists
+    const postgenDir = path.join(process.cwd(), '.postgen');
+    try {
+      await fs.access(postgenDir);
+    } catch (error) {
+      throw new Error('Please run the init prompt first');
+    }
+    
+    // Get the latest content plan
+    const contentPlan = await getLatestContentPlan(postgenDir);
+    if (!contentPlan) {
+      throw new Error('No content plan found. Please create a content plan first.');
+    }
+    
+    // Find the post in the content plan
+    const post = contentPlan.plan.find(p => p.id === postId);
+    if (!post) {
+      throw new Error(`Post with ID ${postId} not found in the content plan.`);
+    }
+    
+    // Get tone analysis for the domain
+    const toneAnalysis = await getExistingToneAnalysis(contentPlan.domain, postgenDir);
+    
+    // Generate narrative with Claude
+    const prompt = buildNarrativePrompt({
+      post,
+      style,
+      toneAnalysis,
+      domain: contentPlan.domain,
+    });
+    
+    const narrative = await claudeService.generateContent(prompt);
+    
+    // Parse the narrative into a structured format
+    const structuredNarrative = parseNarrative(narrative);
+    
+    // Save the narrative
+    const narrativePath = path.join(postgenDir, 'narratives', `${postId}-${Date.now()}.json`);
+    await fs.mkdir(path.dirname(narrativePath), { recursive: true });
+    
+    const result = {
+      postId,
+      title: post.title,
+      style,
+      narrative: structuredNarrative,
+      rawNarrative: narrative,
+      createdAt: new Date().toISOString(),
+    };
+    
+    await fs.writeFile(narrativePath, JSON.stringify(result, null, 2));
+    
+    return result;
   },
 };
-```
 
-```bash
-#!/bin/bash
-# scripts/build-docker.sh
-set -e
+function buildNarrativePrompt(options) {
+  // Build a prompt for narrative generation based on options
+  const stylePrompts = {
+    concise: 'Create a concise outline with key bullet points',
+    detailed: 'Create a detailed narrative with main sections and supporting points',
+    storytelling: 'Create a narrative that tells a compelling story around the topic',
+  };
+  
+  return `Based on the following post idea from the content plan for ${options.domain}:\n\nTitle: ${options.post.title}\nTopic: ${options.post.topic}\nKeywords: ${options.post.keywords.join(', ')}\n\n${stylePrompts[options.style]}\n\nUse this tone of voice: ${options.toneAnalysis}`;
+}
 
-# Build TypeScript
-npm run build
+function parseNarrative(rawNarrative) {
+  // Parse the raw narrative into a structured format
+  // This could extract sections, bullet points, etc.
+}
 
-# Build Docker image
-docker build -t marketing-post-generator .
+async function getLatestContentPlan(postgenDir) {
+  // Get the latest content plan
+}
 
-echo "Docker image built successfully!"
+async function getExistingToneAnalysis(domain, postgenDir) {
+  // Get existing tone analysis for the domain
+}
 ```
 
 # Test Strategy:
-Test Docker build process. Verify container starts correctly. Test volume mounting for persistent data. Verify environment variable configuration works. Test health check endpoint.
+Test narrative generation with different styles. Test with different post types from the content plan. Verify narratives are correctly stored in the .postgen directory. Test error handling for missing content plans or invalid post IDs.

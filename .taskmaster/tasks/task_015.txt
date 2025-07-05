@@ -1,194 +1,109 @@
 # Task ID: 15
-# Title: Documentation and Examples
+# Title: Docker Containerization
 # Status: pending
-# Dependencies: 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
-# Priority: low
-# Description: Create comprehensive documentation and examples for using the Marketing Post Generator MCP server.
+# Dependencies: 1, 2, 3
+# Priority: medium
+# Description: Implement Docker support for containerized deployment of the Marketing Post Generator MCP server.
 # Details:
-1. Create a README.md with installation and usage instructions
-2. Document all tools and prompts with examples
-3. Create example scripts for common workflows
-4. Add API documentation for programmatic usage
-5. Create a user guide for content writers
+1. Create a Dockerfile for the application
+2. Set up docker-compose.yml for local development
+3. Configure environment variables for container deployment
+4. Implement volume mounting for persistent .postgen data
+5. Add health checks and container lifecycle management
+6. Create scripts for building and deploying containers
 
-```markdown
-# Marketing Post Generator MCP
+```dockerfile
+# Dockerfile
+FROM node:18-alpine
 
-An MCP server that leverages AI to automate the creation of marketing blog posts.
+WORKDIR /app
 
-## Features
+# Install dependencies
+COPY package*.json ./
+RUN npm ci --only=production
 
-- Sample blog posts from a domain to extract positioning, tone, and content strategy
-- Summarize individual blog posts
-- Create and manage content plans for future posts
-- Generate narratives and bullet points for upcoming posts
-- Write complete blog posts from scratch
+# Copy application code
+COPY dist/ ./dist/
 
-## Installation
+# Create directory for .postgen data
+RUN mkdir -p /data/.postgen
 
-### Prerequisites
+# Set environment variables
+ENV NODE_ENV=production
+ENV MCP_MODE=remote
+ENV MCP_PORT=3000
+ENV POSTGEN_DATA_DIR=/data/.postgen
 
-- Node.js 18 or higher
-- npm or yarn
-- Claude API key
+# Expose the port
+EXPOSE 3000
 
-### Install from npm
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/health || exit 1
 
-```bash
-npm install marketing-post-generator-mcp
+# Start the application
+CMD ["node", "dist/index.js"]
 ```
 
-### Or clone and build from source
+```yaml
+# docker-compose.yml
+version: '3.8'
 
-```bash
-git clone https://github.com/yourusername/marketing-post-generator-mcp.git
-cd marketing-post-generator-mcp
-npm install
-npm run build
-```
+services:
+  marketing-post-generator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - MCP_MODE=remote
+      - MCP_PORT=3000
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - POSTGEN_DATA_DIR=/data/.postgen
+    volumes:
+      - postgen-data:/data/.postgen
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 5s
 
-## Usage
-
-### Environment Variables
-
-Create a `.env` file with the following variables:
-
-```
-CLAUDE_API_KEY=your_api_key_here
-MCP_MODE=local  # or 'remote'
-MCP_PORT=3000   # for remote mode
-```
-
-### Start the server
-
-```bash
-npm start
-```
-
-### Using Docker
-
-```bash
-docker-compose up -d
-```
-
-## MCP Tools and Prompts
-
-### Initialization
-
-Before using any tools, initialize the generator with a blog domain:
-
-```
-/marketing_post_generator_mcp__init https://example.com/blog
-```
-
-### Sample Blog Posts
-
-Sample and analyze blog posts from a domain:
-
-```
-/marketing_post_generator_mcp__sample example.com 5
-```
-
-### Summarize a Blog Post
-
-Generate a summary of a specific blog post:
-
-```
-/marketing_post_generator_mcp__summarize https://example.com/blog/post-1
-```
-
-### Create a Content Plan
-
-Generate a content plan for future posts:
-
-```
-/marketing_post_generator_mcp__content_plan example.com month 4
-```
-
-### Generate a Post Narrative
-
-Create a narrative outline for a post from the content plan:
-
-```
-/marketing_post_generator_mcp__generate_narrative post-id-1 detailed
-```
-
-### Write a Blog Post
-
-Generate a complete blog post:
-
-```
-/marketing_post_generator_mcp__write_post --title="My Blog Post" --topic="AI Content Generation" --wordCount=1000
-```
-
-Or based on a narrative:
-
-```
-/marketing_post_generator_mcp__write_post --narrativeId=narrative-id-1 --wordCount=1500
-```
-
-## Example Workflows
-
-### Complete Content Generation Pipeline
-
-1. Initialize with your blog domain
-2. Sample existing content to understand tone and style
-3. Generate a content plan for the next month
-4. Create narratives for each post in the plan
-5. Generate complete blog posts from the narratives
-
-## API Documentation
-
-For programmatic usage, see the [API Documentation](docs/api.md).
-
-## License
-
-MIT
+volumes:
+  postgen-data:
 ```
 
 ```typescript
-// examples/complete-workflow.ts
-import { MarketingPostGeneratorClient } from '../src/client';
+// src/config.ts
+export const config = {
+  server: {
+    mode: process.env.MCP_MODE || 'local',
+    port: parseInt(process.env.MCP_PORT || '3000', 10),
+  },
+  claude: {
+    apiKey: process.env.CLAUDE_API_KEY,
+  },
+  postgen: {
+    dataDir: process.env.POSTGEN_DATA_DIR || '.postgen',
+  },
+};
+```
 
-async function runWorkflow() {
-  // Create client
-  const client = new MarketingPostGeneratorClient({
-    mode: 'local',
-    claudeApiKey: process.env.CLAUDE_API_KEY,
-  });
-  
-  try {
-    // Initialize with a domain
-    await client.init('https://example.com/blog');
-    console.log('Initialized with domain');
-    
-    // Sample the domain
-    const sampleResult = await client.sample('example.com', 5);
-    console.log('Sample analysis:', sampleResult.analysis);
-    
-    // Create a content plan
-    const planResult = await client.createContentPlan('example.com', 'month', 4);
-    console.log('Content plan created with', planResult.plan.length, 'posts');
-    
-    // Generate a post from the first item in the plan
-    const firstPost = planResult.plan[0];
-    const postResult = await client.writePost({
-      title: firstPost.title,
-      topic: firstPost.topic,
-      keywords: firstPost.keywords,
-      wordCount: 1000,
-    });
-    
-    console.log('Generated post saved to:', postResult.filePath);
-  } catch (error) {
-    console.error('Workflow error:', error);
-  } finally {
-    await client.close();
-  }
-}
+```bash
+#!/bin/bash
+# scripts/build-docker.sh
+set -e
 
-runWorkflow().catch(console.error);
+# Build TypeScript
+npm run build
+
+# Build Docker image
+docker build -t marketing-post-generator .
+
+echo "Docker image built successfully!"
 ```
 
 # Test Strategy:
-Verify documentation accuracy by following the instructions. Test example scripts to ensure they work as documented. Review API documentation for completeness and accuracy.
+Test Docker build process. Verify container starts correctly. Test volume mounting for persistent data. Verify environment variable configuration works. Test health check endpoint.

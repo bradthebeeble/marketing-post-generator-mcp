@@ -30,7 +30,12 @@
       "WebFetch(domain:www.firecrawl.dev)",
       "mcp__task-master-ai__add_task",
       "mcp__task-master-ai__move_task",
-      "mcp__task-master-ai__generate"
+      "mcp__task-master-ai__generate",
+      "mcp__task-master-ai__remove_subtask",
+      "mcp__task-master-ai__remove_dependency",
+      "mcp__task-master-ai__add_dependency",
+      "mcp__github__create_branch",
+      "mcp__github__get_me"
     ],
     "deny": []
   },

@@ -1,5 +1,5 @@
 import { Tool } from '@modelcontextprotocol/sdk/types.js';
-import { WebScrapingService, BlogPost } from '../services/scraping/WebScrapingService.js';
+import { SearchService, DomainSampleResult } from '../services/search/index.js';
 import { IClaudeService } from '../services/claude/IClaudeService.js';
 import { createLogger } from '../utils/logger.js';
 import winston from 'winston';
@@ -37,14 +37,14 @@ export interface SampleResult {
 
 export class SampleTool {
   private readonly logger: winston.Logger;
-  private readonly webScrapingService: WebScrapingService;
+  private readonly searchService: SearchService;
 
   constructor(
-    logger?: winston.Logger,
-    webScrapingService?: WebScrapingService
+    searchService: SearchService,
+    logger?: winston.Logger
   ) {
     this.logger = logger || createLogger({ level: 'info', format: 'simple' });
-    this.webScrapingService = webScrapingService || new WebScrapingService();
+    this.searchService = searchService;
   }
 
   getToolDefinition(): Tool {
@@ -81,7 +81,7 @@ export class SampleTool {
   }
 
   async execute(args: SampleToolArgs, claudeService: IClaudeService): Promise<string> {
-    const { domain, sampleSize = 5, maxRequestsPerSecond = 2 } = args;
+    const { domain, sampleSize = 5 } = args;
 
     try {
       this.logger.info('Starting sample tool execution', { domain, sampleSize });
@@ -89,12 +89,9 @@ export class SampleTool {
       // Validate .postgen directory exists
       await this.validatePostgenDirectory();
 
-      // Fetch blog posts
+      // Fetch blog posts using SearchService
       this.logger.info('Fetching blog posts', { domain, sampleSize });
-      const posts = await this.webScrapingService.sampleBlogPosts(domain, {
-        sampleSize,
-        maxRequestsPerSecond,
-      });
+      const posts = await this.searchService.sampleDomain(domain, sampleSize);
 
       if (posts.length === 0) {
         throw new Error(
@@ -113,7 +110,7 @@ export class SampleTool {
         domain,
         sampleSize: posts.length,
         posts: posts.map((post) => ({
-          title: post.title,
+          title: post.title || 'Untitled',
           url: post.url,
           ...(post.publishedDate && { publishedDate: post.publishedDate }),
           ...(post.author && { author: post.author }),
@@ -165,7 +162,7 @@ export class SampleTool {
   }
 
   private async analyzeContent(
-    posts: BlogPost[],
+    posts: DomainSampleResult[],
     claudeService: IClaudeService
   ): Promise<SampleAnalysis> {
     const analysisPrompt = this.buildAnalysisPrompt(posts);
@@ -178,11 +175,11 @@ export class SampleTool {
     return this.parseAnalysisResponse(response.content);
   }
 
-  private buildAnalysisPrompt(posts: BlogPost[]): string {
+  private buildAnalysisPrompt(posts: DomainSampleResult[]): string {
     const postsContent = posts
       .map(
         (post, index) =>
-          `## Post ${index + 1}: ${post.title}\n` +
+          `## Post ${index + 1}: ${post.title || 'Untitled'}\n` +
           `URL: ${post.url}\n` +
           `Author: ${post.author || 'Unknown'}\n` +
           `Published: ${post.publishedDate || 'Unknown'}\n` +
@@ -312,7 +309,7 @@ ${result.analysis.keyThemes.map((theme) => `- ${theme}`).join('\n')}
 ${result.posts
   .map(
     (post, index) =>
-      `${index + 1}. **${post.title}**\n   - URL: ${post.url}\n   - Author: ${post.author || 'Unknown'}\n   - Published: ${post.publishedDate ? new Date(post.publishedDate).toLocaleDateString() : 'Unknown'}`
+      `${index + 1}. **${post.title || 'Untitled'}**\n   - URL: ${post.url}\n   - Author: ${post.author || 'Unknown'}\n   - Published: ${post.publishedDate ? new Date(post.publishedDate).toLocaleDateString() : 'Unknown'}`
   )
   .join('\n\n')}
 

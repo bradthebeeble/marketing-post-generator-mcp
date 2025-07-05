@@ -1,0 +1,226 @@
+# Task ID: 17
+# Title: Testing Framework Setup
+# Status: pending
+# Dependencies: 2, 3, 4, 5, 6, 10, 11, 12, 13, 14
+# Priority: medium
+# Description: Set up a comprehensive testing framework for the MCP server, including unit tests, integration tests, and end-to-end tests.
+# Details:
+1. Set up Jest for unit testing
+2. Implement test utilities for mocking Claude Code and MCP Server
+3. Create integration tests for each tool and prompt
+4. Set up end-to-end tests for the complete workflow
+5. Implement test coverage reporting
+
+```typescript
+// jest.config.js
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'node',
+  roots: ['<rootDir>/src'],
+  testMatch: ['**/__tests__/**/*.ts', '**/?(*.)+(spec|test).ts'],
+  collectCoverage: true,
+  collectCoverageFrom: [
+    'src/**/*.ts',
+    '!src/**/*.d.ts',
+    '!src/**/__tests__/**',
+  ],
+  coverageDirectory: 'coverage',
+  coverageReporters: ['text', 'lcov'],
+  coverageThreshold: {
+    global: {
+      branches: 80,
+      functions: 80,
+      lines: 80,
+      statements: 80,
+    },
+  },
+};
+```
+
+```typescript
+// src/__tests__/utils/mocks.ts
+import { MCPServer, MCPTool, MCPPrompt } from '@modelcontextprotocol/sdk';
+
+// Mock Claude Service
+export class MockClaudeService {
+  async generateContent(prompt: string) {
+    // Return mock content based on the prompt
+    if (prompt.includes('summarize')) {
+      return 'This is a mock summary of the content.';
+    }
+    if (prompt.includes('tone')) {
+      return 'The tone is professional and informative.';
+    }
+    if (prompt.includes('content plan')) {
+      return 'Content plan with 4 post ideas: [...]';
+    }
+    if (prompt.includes('blog post')) {
+      return '# Mock Blog Post\n\nThis is a mock blog post generated for testing.';
+    }
+    
+    return 'Mock content generated for testing.';
+  }
+}
+
+// Mock MCP Server
+export class MockMCPServer {
+  private tools: Map<string, MCPTool> = new Map();
+  private prompts: Map<string, MCPPrompt> = new Map();
+  
+  registerTool(tool: MCPTool) {
+    this.tools.set(tool.name, tool);
+  }
+  
+  registerPrompt(prompt: MCPPrompt) {
+    this.prompts.set(prompt.name, tool);
+  }
+  
+  async start() {
+    // Mock start
+  }
+  
+  async stop() {
+    // Mock stop
+  }
+  
+  getRegisteredTools() {
+    return Array.from(this.tools.values());
+  }
+  
+  getRegisteredPrompts() {
+    return Array.from(this.prompts.values());
+  }
+}
+
+// Mock file system
+export const mockFs = {
+  promises: {
+    mkdir: jest.fn().mockResolvedValue(undefined),
+    writeFile: jest.fn().mockResolvedValue(undefined),
+    readFile: jest.fn().mockImplementation((path) => {
+      if (path.includes('config.json')) {
+        return Promise.resolve(JSON.stringify({
+          domain: 'example.com',
+          initialized: '2023-01-01T00:00:00.000Z',
+        }));
+      }
+      if (path.includes('content-plans')) {
+        return Promise.resolve(JSON.stringify({
+          domain: 'example.com',
+          timeframe: 'month',
+          postCount: 4,
+          plan: [
+            { id: '1', title: 'Test Post 1', topic: 'Testing' },
+            { id: '2', title: 'Test Post 2', topic: 'Mocking' },
+          ],
+        }));
+      }
+      
+      throw new Error(`File not found: ${path}`);
+    }),
+    access: jest.fn().mockResolvedValue(undefined),
+  },
+};
+```
+
+```typescript
+// src/__tests__/tools/sample.test.ts
+import { sampleTool } from '../../tools/sample';
+import { MockClaudeService, mockFs } from '../utils/mocks';
+
+// Mock dependencies
+jest.mock('fs/promises', () => mockFs.promises);
+
+describe('Sample Tool', () => {
+  const mockClaudeService = new MockClaudeService();
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+  
+  it('should sample blog posts from a domain', async () => {
+    const result = await sampleTool.handler(
+      { domain: 'example.com', sampleSize: 3 },
+      { claudeService: mockClaudeService }
+    );
+    
+    expect(result).toHaveProperty('message');
+    expect(result).toHaveProperty('analysis');
+    expect(mockFs.promises.writeFile).toHaveBeenCalled();
+  });
+  
+  it('should throw an error if .postgen directory does not exist', async () => {
+    mockFs.promises.access.mockRejectedValueOnce(new Error('Directory not found'));
+    
+    await expect(sampleTool.handler(
+      { domain: 'example.com', sampleSize: 3 },
+      { claudeService: mockClaudeService }
+    )).rejects.toThrow('Please run the init prompt first');
+  });
+});
+```
+
+```typescript
+// src/__tests__/integration/workflow.test.ts
+import { MarketingPostGeneratorServer } from '../../server';
+import { initPrompt } from '../../prompts/init';
+import { sampleTool } from '../../tools/sample';
+import { summarizeTool } from '../../tools/summarize';
+import { contentPlanTool } from '../../tools/content-plan';
+import { blogPostGeneratorTool } from '../../tools/write-post';
+
+// This test requires actual file system access and Claude API key
+// Skip in CI unless environment is properly configured
+const runIntegrationTests = process.env.RUN_INTEGRATION_TESTS === 'true';
+
+(runIntegrationTests ? describe : describe.skip)('End-to-end workflow', () => {
+  let server;
+  
+  beforeAll(async () => {
+    server = new MarketingPostGeneratorServer({
+      mode: 'local',
+      claudeApiKey: process.env.CLAUDE_API_KEY,
+    });
+    
+    await server.start();
+  });
+  
+  afterAll(async () => {
+    await server.stop();
+  });
+  
+  it('should complete a full workflow', async () => {
+    // Step 1: Initialize with a domain
+    const initResult = await server.executePrompt('marketing_post_generator_mcp__init', {
+      domain: 'https://example.com',
+    });
+    expect(initResult).toContain('Successfully initialized');
+    
+    // Step 2: Sample the domain
+    const sampleResult = await server.executeTool('marketing_post_generator_mcp__sample', {
+      domain: 'example.com',
+      sampleSize: 2,
+    });
+    expect(sampleResult).toHaveProperty('analysis');
+    
+    // Step 3: Create a content plan
+    const planResult = await server.executeTool('marketing_post_generator_mcp__content_plan', {
+      domain: 'example.com',
+      timeframe: 'week',
+      postCount: 2,
+    });
+    expect(planResult).toHaveProperty('plan');
+    
+    // Step 4: Write a blog post
+    const postResult = await server.executeTool('marketing_post_generator_mcp__write_post', {
+      title: 'Test Post',
+      topic: 'Integration Testing',
+      wordCount: 500,
+    });
+    expect(postResult).toHaveProperty('filePath');
+  }, 30000); // Increase timeout for this test
+});
+```
+
+# Test Strategy:
+Run unit tests for individual components. Run integration tests for tool and prompt combinations. Run end-to-end tests for complete workflows. Verify test coverage meets thresholds.

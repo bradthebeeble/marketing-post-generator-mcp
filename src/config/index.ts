@@ -49,6 +49,18 @@ export const DEFAULT_CONFIG: ServerConfig = {
       tokensPerMinute: parseInt(process.env.CLAUDE_RATE_LIMIT_TOKENS || '50000', 10),
     },
   },
+  search: {
+    defaultAdapter: process.env.SEARCH_DEFAULT_ADAPTER || 'web-scraping',
+    fallbackAdapters: process.env.SEARCH_FALLBACK_ADAPTERS ? process.env.SEARCH_FALLBACK_ADAPTERS.split(',') : [],
+    adapterConfigs: {
+      'web-scraping': {
+        sampleSize: parseInt(process.env.SEARCH_WEB_SAMPLE_SIZE || '5', 10),
+        maxRequestsPerSecond: parseInt(process.env.SEARCH_WEB_RATE_LIMIT || '2', 10),
+        timeout: parseInt(process.env.SEARCH_WEB_TIMEOUT || '30000', 10),
+        userAgent: process.env.SEARCH_WEB_USER_AGENT || 'Mozilla/5.0 (compatible; MarketingPostGenerator/1.0)',
+      },
+    },
+  },
   logging: {
     level: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug' | 'trace') || 'info',
     format: (process.env.LOG_FORMAT as 'simple' | 'json' | 'pretty') || 'simple',

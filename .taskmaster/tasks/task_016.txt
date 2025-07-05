@@ -1,0 +1,155 @@
+# Task ID: 16
+# Title: Error Handling and Logging System
+# Status: pending
+# Dependencies: 2, 3
+# Priority: medium
+# Description: Implement a comprehensive error handling and logging system for the MCP server.
+# Details:
+1. Create a logging service with different log levels
+2. Implement structured error handling for all tools and prompts
+3. Add request/response logging for remote mode
+4. Implement error reporting and monitoring
+5. Add rate limiting and throttling for error conditions
+
+```typescript
+import * as winston from 'winston';
+
+// Log levels: error, warn, info, http, verbose, debug, silly
+export const logger = winston.createLogger({
+  level: process.env.LOG_LEVEL || 'info',
+  format: winston.format.combine(
+    winston.format.timestamp(),
+    winston.format.json()
+  ),
+  defaultMeta: { service: 'marketing-post-generator' },
+  transports: [
+    new winston.transports.Console({
+      format: winston.format.combine(
+        winston.format.colorize(),
+        winston.format.simple()
+      ),
+    }),
+    new winston.transports.File({ filename: 'error.log', level: 'error' }),
+    new winston.transports.File({ filename: 'combined.log' }),
+  ],
+});
+
+export class ErrorHandler {
+  static async wrapHandler(handler: Function, context: any) {
+    try {
+      return await handler(context);
+    } catch (error) {
+      logger.error('Error in handler', {
+        error: error.message,
+        stack: error.stack,
+        context,
+      });
+      
+      // Determine if this is a user error or system error
+      if (error.name === 'ValidationError' || error.name === 'UserInputError') {
+        throw new Error(`Invalid input: ${error.message}`);
+      }
+      
+      // For system errors, provide a generic message
+      throw new Error('An internal error occurred. Please try again later.');
+    }
+  }
+  
+  static createMiddleware() {
+    return async (req, res, next) => {
+      const start = Date.now();
+      
+      // Add request ID
+      req.id = crypto.randomUUID();
+      
+      // Log request
+      logger.http('Incoming request', {
+        id: req.id,
+        method: req.method,
+        path: req.path,
+        ip: req.ip,
+      });
+      
+      // Capture response
+      const originalSend = res.send;
+      res.send = function(body) {
+        const duration = Date.now() - start;
+        
+        logger.http('Outgoing response', {
+          id: req.id,
+          statusCode: res.statusCode,
+          duration,
+        });
+        
+        return originalSend.call(this, body);
+      };
+      
+      try {
+        await next();
+      } catch (error) {
+        logger.error('Error in request', {
+          id: req.id,
+          error: error.message,
+          stack: error.stack,
+        });
+        
+        res.status(500).json({
+          error: 'An internal error occurred',
+          requestId: req.id,
+        });
+      }
+    };
+  }
+}
+
+// Rate limiter
+export class RateLimiter {
+  private limits: Map<string, { count: number, resetAt: number }> = new Map();
+  private readonly maxRequests: number;
+  private readonly windowMs: number;
+  
+  constructor(maxRequests = 100, windowMs = 60000) {
+    this.maxRequests = maxRequests;
+    this.windowMs = windowMs;
+  }
+  
+  check(key: string): boolean {
+    const now = Date.now();
+    
+    // Get or create limit entry
+    let limit = this.limits.get(key);
+    if (!limit || now > limit.resetAt) {
+      limit = { count: 0, resetAt: now + this.windowMs };
+      this.limits.set(key, limit);
+    }
+    
+    // Check if limit exceeded
+    if (limit.count >= this.maxRequests) {
+      return false;
+    }
+    
+    // Increment count
+    limit.count++;
+    return true;
+  }
+  
+  getRemainingRequests(key: string): number {
+    const now = Date.now();
+    const limit = this.limits.get(key);
+    
+    if (!limit || now > limit.resetAt) {
+      return this.maxRequests;
+    }
+    
+    return Math.max(0, this.maxRequests - limit.count);
+  }
+  
+  getResetTime(key: string): number {
+    const limit = this.limits.get(key);
+    return limit ? limit.resetAt : Date.now() + this.windowMs;
+  }
+}
+```
+
+# Test Strategy:
+Test logging at different levels. Test error handling for various error types. Test rate limiting functionality. Verify request/response logging in remote mode. Test error reporting and monitoring.

@@ -1,0 +1,113 @@
+# Task ID: 2
+# Title: MCP Server Implementation
+# Status: done
+# Dependencies: 1
+# Priority: high
+# Description: Create the core MCP server implementation that supports both local and remote (HTTP) modes according to the MCP specification.
+# Details:
+1. Import the MCP Server SDK
+2. Create a server class that initializes the MCP server
+3. Implement configuration options for both local and remote modes
+4. Set up HTTP server for remote mode using Express or similar
+5. Implement proper error handling and logging
+6. Create server startup and shutdown methods
+7. Add health check endpoint for remote mode
+8. Implement server configuration from environment variables
+9. Add connection validation logic
+
+Example server initialization:
+```typescript
+import { MCPServer } from '@modelcontextprotocol/sdk';
+
+export class MarketingPostGeneratorServer {
+  private mcpServer: MCPServer;
+  
+  constructor(config: ServerConfig) {
+    this.mcpServer = new MCPServer({
+      mode: config.mode, // 'local' or 'remote'
+      port: config.port,
+      // other configuration options
+    });
+  }
+  
+  async start() {
+    await this.mcpServer.start();
+    console.log(`MCP Server started in ${this.mcpServer.mode} mode`);
+  }
+  
+  async stop() {
+    await this.mcpServer.stop();
+  }
+}
+```
+
+**Implementation Details:**
+- Integrated MCP SDK's StreamableHTTPServerTransport for remote mode
+- Set up Express.js server with middleware (helmet, cors, body parsing)
+- Implemented /health endpoint returning server status and metadata
+- Extended ServerConfig interface with HTTP-specific options including DNS rebinding protection
+- Added security features including DNS rebinding protection, CORS configuration, and security headers
+- Implemented session management with UUID generation and logging
+- Created proper error handling and request validation for both transport modes
+
+# Test Strategy:
+Test server initialization in both local and remote modes. Verify server starts and stops correctly. For remote mode, test HTTP endpoints respond appropriately. Use mock clients to verify connection handling.
+
+**Test Results:**
+- ✅ Local mode (stdio): Server starts successfully and accepts connections
+- ✅ Remote mode (HTTP): Server starts on port 3000 with health check at /health
+- ✅ Health endpoint: Returns proper JSON response with server metadata  
+- ✅ MCP Protocol: Successfully handles MCP initialize requests via HTTP
+- ✅ Session Management: Creates and logs new MCP sessions with UUIDs
+- ✅ Configuration: Both default and remote configurations work correctly
+- ✅ TypeScript Build: All code compiles without errors
+
+# Subtasks:
+## 1. HTTP Transport Integration [completed]
+### Dependencies: None
+### Description: Integrate the MCP SDK's StreamableHTTPServerTransport for remote mode operation
+### Details:
+
+
+## 2. Express Server Setup [completed]
+### Dependencies: None
+### Description: Create Express.js server with proper middleware (helmet, cors, body parsing)
+### Details:
+
+
+## 3. Health Check Endpoint [completed]
+### Dependencies: None
+### Description: Implement /health endpoint returning server status and metadata
+### Details:
+
+
+## 4. Configuration Enhancement [completed]
+### Dependencies: None
+### Description: Extend ServerConfig interface with HTTP-specific options including DNS rebinding protection
+### Details:
+
+
+## 5. Dual Transport Support [completed]
+### Dependencies: None
+### Description: Ensure server supports both local (stdio) and remote (HTTP) modes based on configuration
+### Details:
+
+
+## 6. Security Features [completed]
+### Dependencies: None
+### Description: Add DNS rebinding protection, CORS configuration, and security headers
+### Details:
+
+
+## 7. Connection Validation [completed]
+### Dependencies: None
+### Description: Implement proper error handling and request validation for both transport modes
+### Details:
+
+
+## 8. Session Management [completed]
+### Dependencies: None
+### Description: Integrate MCP session initialization with UUID generation and logging
+### Details:
+
+

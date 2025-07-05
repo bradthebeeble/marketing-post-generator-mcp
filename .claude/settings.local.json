@@ -23,7 +23,14 @@
       "Bash(true)",
       "mcp__github__list_pull_requests",
       "mcp__coderabbitai__get_review_comments",
-      "mcp__coderabbitai__resolve_comment"
+      "mcp__coderabbitai__resolve_comment",
+      "mcp__github__merge_pull_request",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.perplexity.ai)",
+      "WebFetch(domain:www.firecrawl.dev)",
+      "mcp__task-master-ai__add_task",
+      "mcp__task-master-ai__move_task",
+      "mcp__task-master-ai__generate"
     ],
     "deny": []
   },

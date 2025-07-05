@@ -1,0 +1,127 @@
+# Task ID: 8
+# Title: Content Plan Generator Tool Implementation
+# Status: pending
+# Dependencies: 3, 4, 5, 7
+# Priority: medium
+# Description: Implement the tool for creating and managing a content plan for future posts, taking into account domain-specific topics, content variety, and emerging trends.
+# Details:
+1. Create a tool definition for content plan generation
+2. Implement logic to analyze existing content and identify gaps
+3. Use Claude Code to generate content plan suggestions
+4. Store the content plan in the .postgen/content-plans directory
+5. Implement options for different timeframes and content volumes
+6. Add functionality to update existing plans
+
+```typescript
+import { MCPTool } from '@modelcontextprotocol/sdk';
+import { ClaudeService } from './services/claude-service';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+export const contentPlanTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__content_plan',
+  description: 'Create or update a content plan for future blog posts',
+  parameters: {
+    domain: {
+      type: 'string',
+      description: 'The domain to create a content plan for',
+    },
+    timeframe: {
+      type: 'string',
+      description: 'Timeframe for the content plan',
+      enum: ['week', 'month', 'quarter'],
+      default: 'month',
+    },
+    postCount: {
+      type: 'number',
+      description: 'Number of posts to plan',
+      default: 4,
+    },
+    updateExisting: {
+      type: 'boolean',
+      description: 'Whether to update an existing plan or create a new one',
+      default: false,
+    },
+  },
+  handler: async ({ domain, timeframe, postCount, updateExisting }, { claudeService }) => {
+    // Validate .postgen directory exists
+    const postgenDir = path.join(process.cwd(), '.postgen');
+    try {
+      await fs.access(postgenDir);
+    } catch (error) {
+      throw new Error('Please run the init prompt first');
+    }
+    
+    // Get existing samples and tone analysis
+    const samples = await getExistingSamples(domain, postgenDir);
+    const toneAnalysis = await getExistingToneAnalysis(domain, postgenDir);
+    
+    // Check for existing content plan if updating
+    let existingPlan = null;
+    if (updateExisting) {
+      try {
+        existingPlan = await getLatestContentPlan(domain, postgenDir);
+      } catch (error) {
+        // No existing plan, will create a new one
+      }
+    }
+    
+    // Generate content plan with Claude
+    const prompt = buildContentPlanPrompt({
+      domain,
+      timeframe,
+      postCount,
+      samples,
+      toneAnalysis,
+      existingPlan,
+    });
+    
+    const contentPlan = await claudeService.generateContent(prompt);
+    
+    // Parse the content plan into a structured format
+    const structuredPlan = parseContentPlan(contentPlan);
+    
+    // Save the content plan
+    const planId = Date.now();
+    const planPath = path.join(postgenDir, 'content-plans', `${domain}-${planId}.json`);
+    await fs.mkdir(path.dirname(planPath), { recursive: true });
+    
+    const result = {
+      domain,
+      timeframe,
+      postCount,
+      plan: structuredPlan,
+      rawPlan: contentPlan,
+      createdAt: new Date().toISOString(),
+      updatedFrom: existingPlan ? existingPlan.createdAt : null,
+    };
+    
+    await fs.writeFile(planPath, JSON.stringify(result, null, 2));
+    
+    return result;
+  },
+};
+
+function buildContentPlanPrompt(options) {
+  // Build a prompt for content plan generation based on options
+}
+
+function parseContentPlan(rawPlan) {
+  // Parse the raw content plan into a structured format
+}
+
+async function getExistingSamples(domain, postgenDir) {
+  // Get existing samples for the domain
+}
+
+async function getExistingToneAnalysis(domain, postgenDir) {
+  // Get existing tone analysis for the domain
+}
+
+async function getLatestContentPlan(domain, postgenDir) {
+  // Get the latest content plan for the domain
+}
+```
+
+# Test Strategy:
+Test content plan generation with different parameters. Test updating existing plans. Verify plans are correctly stored in the .postgen directory. Test error handling for missing samples or tone analysis.

@@ -1,0 +1,86 @@
+# Task ID: 5
+# Title: Sample Tool Implementation
+# Status: done
+# Dependencies: 3, 4
+# Priority: high
+# Description: Implement the 'sample' tool that fetches and analyzes blog posts from a domain to extract positioning, tone of voice, and content strategy.
+# Details:
+1. Create a tool definition for the sample functionality
+2. Implement web scraping logic to fetch blog posts from a domain
+3. Use Claude Code to analyze the content for positioning, tone, and strategy
+4. Store the results in the .postgen/samples directory
+5. Implement pagination and sampling logic to get a representative set of posts
+6. Add rate limiting to prevent overloading the target site
+7. Implement caching to avoid re-fetching already analyzed content
+
+```typescript
+import { MCPTool } from '@modelcontextprotocol/sdk';
+import { ClaudeService } from './services/claude-service';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+
+export const sampleTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__sample',
+  description: 'Sample blog posts from a domain to extract positioning, tone, and content strategy',
+  parameters: {
+    domain: {
+      type: 'string',
+      description: 'The domain to sample from',
+    },
+    sampleSize: {
+      type: 'number',
+      description: 'Number of posts to sample',
+      default: 5,
+    },
+  },
+  handler: async ({ domain, sampleSize }, { claudeService }) => {
+    // Validate .postgen directory exists
+    const postgenDir = path.join(process.cwd(), '.postgen');
+    try {
+      await fs.access(postgenDir);
+    } catch (error) {
+      throw new Error('Please run the init prompt first');
+    }
+    
+    // Fetch blog posts
+    const posts = await fetchBlogPosts(domain, sampleSize);
+    
+    // Analyze posts with Claude
+    const analysis = await claudeService.generateContent(
+      `Analyze these ${posts.length} blog posts from ${domain} and extract:
+1. Overall positioning
+2. Tone of voice
+3. Content strategy
+
+Posts:
+${posts.map((p, i) => `Post ${i+1}: ${p.title}\n${p.content}\n---`).join('\n')}`
+    );
+    
+    // Save results
+    const samplePath = path.join(postgenDir, 'samples', `${domain}-${Date.now()}.json`);
+    await fs.writeFile(
+      samplePath,
+      JSON.stringify({
+        domain,
+        sampleSize,
+        posts: posts.map(p => ({ title: p.title, url: p.url })),
+        analysis,
+        timestamp: new Date().toISOString(),
+      }, null, 2)
+    );
+    
+    return {
+      message: `Successfully sampled ${posts.length} posts from ${domain}`,
+      analysis,
+    };
+  },
+};
+
+async function fetchBlogPosts(domain, count) {
+  // Implementation of web scraping logic
+  // This would use a library like cheerio or puppeteer
+}
+```
+
+# Test Strategy:
+Test with mock web responses to verify scraping logic. Test analysis with mock Claude responses. Verify results are correctly stored in the .postgen directory. Test rate limiting and error handling for network issues.

@@ -1,0 +1,771 @@
+# Task ID: 6
+# Title: Summarize Tool Implementation
+# Status: done
+# Dependencies: 3, 4
+# Priority: high
+# Description: Implement the 'summarize' tool that takes a blog post URL and generates a concise summary of its content.
+# Details:
+1. Create a tool definition for the summarize functionality
+2. Implement web scraping to fetch the content of a specific blog post
+3. Use Claude Code to generate a summary of the post
+4. Store the summary in the .postgen/summaries directory
+5. Implement caching to avoid re-summarizing already processed posts
+6. Add proper error handling for invalid URLs or inaccessible content
+
+```typescript
+import { MCPTool } from '@modelcontextprotocol/sdk';
+import { ClaudeService } from './services/claude-service';
+import * as fs from 'fs/promises';
+import * as path from 'path';
+import * as crypto from 'crypto';
+
+export const summarizeTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__summarize',
+  description: 'Summarize a blog post from its URL',
+  parameters: {
+    url: {
+      type: 'string',
+      description: 'The URL of the blog post to summarize',
+    },
+  },
+  handler: async ({ url }, { claudeService }) => {
+    // Validate .postgen directory exists
+    const postgenDir = path.join(process.cwd(), '.postgen');
+    try {
+      await fs.access(postgenDir);
+    } catch (error) {
+      throw new Error('Please run the init prompt first');
+    }
+    
+    // Create a hash of the URL for the filename
+    const urlHash = crypto.createHash('md5').update(url).digest('hex');
+    const summaryPath = path.join(postgenDir, 'summaries', `${urlHash}.json`);
+    
+    // Check if we already have a summary
+    try {
+      const existingSummary = await fs.readFile(summaryPath, 'utf-8');
+      return JSON.parse(existingSummary);
+    } catch (error) {
+      // No existing summary, continue
+    }
+    
+    // Fetch the blog post content
+    const { title, content } = await fetchBlogPost(url);
+    
+    // Generate summary with Claude
+    const summary = await claudeService.generateContent(
+      `Summarize this blog post in a concise way that captures the main points and key insights:\n\nTitle: ${title}\n\nContent: ${content}`
+    );
+    
+    // Save the summary
+    const result = {
+      url,
+      title,
+      summary,
+      timestamp: new Date().toISOString(),
+    };
+    
+    await fs.writeFile(summaryPath, JSON.stringify(result, null, 2));
+    
+    return result;
+  },
+};
+
+async function fetchBlogPost(url) {
+  // Implementation of web scraping for a specific post
+  // This would use a library like cheerio or puppeteer
+}
+```
+
+# Test Strategy:
+Test with mock web responses to verify post fetching. Test summary generation with mock Claude responses. Verify summaries are correctly stored in the .postgen directory. Test caching behavior and error handling for network issues.
+
+# Subtasks:
+## 5. Implement Pluggable Search Adapter Architecture [pending]
+### Dependencies: 6.2, 6.5, 6.6, 6.13
+### Description: Create a flexible search adapter architecture that replaces the current web scraping system with a clean interface for switching between different search providers while maintaining consistent tool behavior.
+### Details:
+1. Create an abstract `ISearchAdapter` interface:
+```typescript
+export interface ISearchAdapter {
+  // Fetch content from a single URL
+  fetchContent(url: string): Promise<string>;
+  
+  // Sample multiple pages from a domain
+  sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>>;
+  
+  // Get search results for a query
+  search(query: string, options?: SearchOptions): Promise<SearchResult[]>;
+  
+  // Initialize the adapter with configuration
+  initialize(config: Record<string, any>): Promise<void>;
+}
+
+export interface SearchOptions {
+  limit?: number;
+  offset?: number;
+  filters?: Record<string, any>;
+}
+
+export interface SearchResult {
+  url: string;
+  title: string;
+  snippet: string;
+}
+```
+
+2. Implement the `SearchAdapterFactory` for managing provider instances:
+```typescript
+export class SearchAdapterFactory {
+  private static adapters: Map<string, new () => ISearchAdapter> = new Map();
+  
+  // Register a new adapter implementation
+  public static registerAdapter(name: string, adapterClass: new () => ISearchAdapter): void {
+    this.adapters.set(name.toLowerCase(), adapterClass);
+  }
+  
+  // Create an instance of a specific adapter
+  public static createAdapter(name: string): ISearchAdapter {
+    const AdapterClass = this.adapters.get(name.toLowerCase());
+    if (!AdapterClass) {
+      throw new Error(`Search adapter '${name}' not found`);
+    }
+    return new AdapterClass();
+  }
+  
+  // List all available adapters
+  public static getAvailableAdapters(): string[] {
+    return Array.from(this.adapters.keys());
+  }
+}
+```
+
+3. Create concrete adapter implementations for different providers:
+```typescript
+// Example implementation for FirecrawlAdapter
+export class FirecrawlAdapter implements ISearchAdapter {
+  private apiKey: string;
+  private baseUrl: string;
+  
+  async initialize(config: Record<string, any>): Promise<void> {
+    this.apiKey = config.apiKey;
+    this.baseUrl = config.baseUrl || 'https://api.firecrawl.com/v1';
+  }
+  
+  async fetchContent(url: string): Promise<string> {
+    // Implementation using Firecrawl API
+    // ...
+  }
+  
+  async sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>> {
+    // Implementation using Firecrawl API
+    // ...
+  }
+  
+  async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
+    // Implementation using Firecrawl API
+    // ...
+  }
+}
+
+// Similar implementations for PerplexityAdapter, SerpApiAdapter, etc.
+```
+
+4. Implement the `SearchService` as the main service layer:
+```typescript
+export class SearchService {
+  private adapter: ISearchAdapter;
+  private fallbackAdapters: ISearchAdapter[] = [];
+  
+  constructor(primaryAdapter: ISearchAdapter, fallbacks: ISearchAdapter[] = []) {
+    this.adapter = primaryAdapter;
+    this.fallbackAdapters = fallbacks;
+  }
+  
+  // Set a new primary adapter
+  public setAdapter(adapter: ISearchAdapter): void {
+    this.adapter = adapter;
+  }
+  
+  // Add a fallback adapter
+  public addFallbackAdapter(adapter: ISearchAdapter): void {
+    this.fallbackAdapters.push(adapter);
+  }
+  
+  // Fetch content with fallback support
+  public async fetchContent(url: string): Promise<string> {
+    try {
+      return await this.adapter.fetchContent(url);
+    } catch (error) {
+      // Try fallback adapters
+      for (const fallbackAdapter of this.fallbackAdapters) {
+        try {
+          return await fallbackAdapter.fetchContent(url);
+        } catch (fallbackError) {
+          // Continue to next fallback
+        }
+      }
+      throw new Error(`Failed to fetch content from ${url} with all adapters`);
+    }
+  }
+  
+  // Sample domain with fallback support
+  public async sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>> {
+    try {
+      return await this.adapter.sampleDomain(domain, count);
+    } catch (error) {
+      // Try fallback adapters
+      for (const fallbackAdapter of this.fallbackAdapters) {
+        try {
+          return await fallbackAdapter.sampleDomain(domain, count);
+        } catch (fallbackError) {
+          // Continue to next fallback
+        }
+      }
+      throw new Error(`Failed to sample domain ${domain} with all adapters`);
+    }
+  }
+  
+  // Search with fallback support
+  public async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
+    try {
+      return await this.adapter.search(query, options);
+    } catch (error) {
+      // Try fallback adapters
+      for (const fallbackAdapter of this.fallbackAdapters) {
+        try {
+          return await fallbackAdapter.search(query, options);
+        } catch (fallbackError) {
+          // Continue to next fallback
+        }
+      }
+      throw new Error(`Failed to search for "${query}" with all adapters`);
+    }
+  }
+}
+```
+
+5. Add configuration system for selecting and configuring search adapters:
+```typescript
+// In config.ts or similar
+export interface SearchConfig {
+  defaultAdapter: string;
+  fallbackAdapters: string[];
+  adapterConfigs: Record<string, Record<string, any>>;
+}
+
+// Example configuration
+const searchConfig: SearchConfig = {
+  defaultAdapter: 'firecrawl',
+  fallbackAdapters: ['serpapi', 'perplexity'],
+  adapterConfigs: {
+    firecrawl: {
+      apiKey: process.env.FIRECRAWL_API_KEY,
+      baseUrl: 'https://api.firecrawl.com/v1'
+    },
+    serpapi: {
+      apiKey: process.env.SERPAPI_API_KEY
+    },
+    perplexity: {
+      apiKey: process.env.PERPLEXITY_API_KEY
+    }
+  }
+};
+
+// Factory function to create SearchService from config
+export async function createSearchService(config: SearchConfig): Promise<SearchService> {
+  // Create and initialize primary adapter
+  const primaryAdapter = SearchAdapterFactory.createAdapter(config.defaultAdapter);
+  await primaryAdapter.initialize(config.adapterConfigs[config.defaultAdapter] || {});
+  
+  // Create and initialize fallback adapters
+  const fallbackAdapters: ISearchAdapter[] = [];
+  for (const adapterName of config.fallbackAdapters) {
+    const adapter = SearchAdapterFactory.createAdapter(adapterName);
+    await adapter.initialize(config.adapterConfigs[adapterName] || {});
+    fallbackAdapters.push(adapter);
+  }
+  
+  return new SearchService(primaryAdapter, fallbackAdapters);
+}
+```
+
+6. Update existing tools to use the new SearchService:
+```typescript
+// In the sample tool implementation
+import { SearchService } from './services/search-service';
+
+export class SampleTool implements MCPTool {
+  private searchService: SearchService;
+  
+  constructor(searchService: SearchService) {
+    this.searchService = searchService;
+  }
+  
+  async execute(params: any): Promise<any> {
+    const domain = params.domain;
+    const count = params.count || 5;
+    
+    // Use the search service instead of direct web scraping
+    const samples = await this.searchService.sampleDomain(domain, count);
+    
+    // Process samples and continue with analysis
+    // ...
+  }
+}
+```
+
+7. Register the adapters during application startup:
+```typescript
+// In app.ts or similar
+import { SearchAdapterFactory } from './services/search-adapter-factory';
+import { FirecrawlAdapter } from './adapters/firecrawl-adapter';
+import { SerpApiAdapter } from './adapters/serpapi-adapter';
+import { PerplexityAdapter } from './adapters/perplexity-adapter';
+
+// Register all available adapters
+SearchAdapterFactory.registerAdapter('firecrawl', FirecrawlAdapter);
+SearchAdapterFactory.registerAdapter('serpapi', SerpApiAdapter);
+SearchAdapterFactory.registerAdapter('perplexity', PerplexityAdapter);
+
+// Create search service from configuration
+const searchService = await createSearchService(searchConfig);
+
+// Use the search service when creating tools
+const sampleTool = new SampleTool(searchService);
+const summarizeTool = new SummarizeTool(searchService);
+// ...
+```
+
+## 7. Implement Firecrawl Search Adapter [pending]
+### Dependencies: 6.16
+### Description: Create a Firecrawl Search Adapter as the first concrete implementation of the pluggable search architecture, providing professional content extraction capabilities as an alternative to primitive web scraping.
+### Details:
+1. Install and configure Firecrawl SDK/API client:
+```typescript
+import axios from 'axios';
+
+// Firecrawl API client
+export class FirecrawlClient {
+  private apiKey: string;
+  private baseUrl: string = 'https://api.firecrawl.com/v1';
+  
+  constructor(apiKey: string) {
+    this.apiKey = apiKey;
+  }
+  
+  // API methods will be implemented here
+}
+```
+
+2. Create FirecrawlSearchAdapter class implementing the ISearchAdapter interface:
+```typescript
+import { ISearchAdapter, SearchOptions, SearchResult } from './search-adapter-interface';
+import { FirecrawlClient } from './firecrawl-client';
+import { logger } from '../services/logging-service';
+
+export class FirecrawlSearchAdapter implements ISearchAdapter {
+  private client: FirecrawlClient;
+  private config: FirecrawlAdapterConfig;
+  
+  constructor(config: FirecrawlAdapterConfig) {
+    this.config = config;
+    this.client = new FirecrawlClient(config.apiKey);
+  }
+  
+  async initialize(): Promise<void> {
+    // Validate API key and connection
+    try {
+      // Test API connection
+      logger.info('Initializing Firecrawl search adapter');
+      // Implementation details
+    } catch (error) {
+      logger.error('Failed to initialize Firecrawl adapter', { error });
+      throw new Error('Firecrawl adapter initialization failed');
+    }
+  }
+  
+  async fetchContent(url: string): Promise<string> {
+    // Implementation will be added
+  }
+  
+  async sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>> {
+    // Implementation will be added
+  }
+  
+  async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
+    // Implementation will be added
+  }
+}
+
+interface FirecrawlAdapterConfig {
+  apiKey: string;
+  rateLimit: number; // Requests per minute
+  maxRetries: number;
+  timeoutMs: number;
+  maxCreditsPerDay?: number; // Optional credit management
+}
+```
+
+3. Implement single URL content fetching with proper error handling:
+```typescript
+async fetchContent(url: string): Promise<string> {
+  logger.info('Fetching content via Firecrawl', { url });
+  
+  try {
+    const response = await this.executeWithRetry(() => 
+      this.client.extractContent(url, { 
+        includeHtml: false,
+        includeText: true,
+        includeMetadata: true 
+      })
+    );
+    
+    if (!response.text) {
+      throw new Error('No content returned from Firecrawl');
+    }
+    
+    return response.text;
+  } catch (error) {
+    logger.error('Error fetching content from Firecrawl', { url, error });
+    throw new Error(`Failed to fetch content: ${error.message}`);
+  }
+}
+```
+
+4. Implement domain sampling for multiple blog posts:
+```typescript
+async sampleDomain(domain: string, count: number): Promise<Array<{url: string, content: string}>> {
+  logger.info('Sampling domain via Firecrawl', { domain, count });
+  
+  try {
+    // First discover blog posts on the domain
+    const blogUrls = await this.executeWithRetry(() => 
+      this.client.discoverBlogPosts(domain, { 
+        limit: Math.min(count * 2, 50), // Request more than needed to filter
+        depth: 2
+      })
+    );
+    
+    // Select a representative sample
+    const selectedUrls = this.selectRepresentativeSample(blogUrls, count);
+    
+    // Fetch content for each URL
+    const results = await Promise.all(
+      selectedUrls.map(async (url) => {
+        try {
+          const content = await this.fetchContent(url);
+          return { url, content };
+        } catch (error) {
+          logger.warn('Failed to fetch content for URL in sample', { url, error });
+          return null;
+        }
+      })
+    );
+    
+    // Filter out failed fetches
+    return results.filter(result => result !== null);
+  } catch (error) {
+    logger.error('Error sampling domain with Firecrawl', { domain, error });
+    throw new Error(`Failed to sample domain: ${error.message}`);
+  }
+}
+
+private selectRepresentativeSample(urls: string[], count: number): string[] {
+  // Implementation to select diverse, representative sample
+  // Could use recency, length, or other heuristics
+  
+  // For now, just take the most recent ones
+  return urls.slice(0, count);
+}
+```
+
+5. Add Firecrawl-specific configuration:
+```typescript
+// In the adapter factory
+export function createSearchAdapter(type: 'firecrawl', config: any): ISearchAdapter {
+  if (type === 'firecrawl') {
+    // Validate config
+    if (!config.apiKey) {
+      throw new Error('Firecrawl adapter requires an API key');
+    }
+    
+    // Set defaults for optional config
+    const adapterConfig: FirecrawlAdapterConfig = {
+      apiKey: config.apiKey,
+      rateLimit: config.rateLimit || 30, // Default to 30 requests per minute
+      maxRetries: config.maxRetries || 3,
+      timeoutMs: config.timeoutMs || 10000,
+      maxCreditsPerDay: config.maxCreditsPerDay
+    };
+    
+    return new FirecrawlSearchAdapter(adapterConfig);
+  }
+  
+  throw new Error(`Unknown adapter type: ${type}`);
+}
+```
+
+6. Handle Firecrawl API responses and convert to standardized SearchResult format:
+```typescript
+async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
+  logger.info('Searching via Firecrawl', { query, options });
+  
+  try {
+    const response = await this.executeWithRetry(() => 
+      this.client.search(query, {
+        limit: options?.limit || 10,
+        siteFilter: options?.domain,
+        contentType: 'blog'
+      })
+    );
+    
+    // Convert to standardized format
+    return response.results.map(result => ({
+      url: result.url,
+      title: result.title,
+      snippet: result.snippet,
+      publishDate: result.publishDate ? new Date(result.publishDate) : undefined,
+      author: result.author,
+      // Add any other standard fields
+    }));
+  } catch (error) {
+    logger.error('Error searching with Firecrawl', { query, error });
+    throw new Error(`Search failed: ${error.message}`);
+  }
+}
+```
+
+7. Add proper logging and error reporting:
+```typescript
+// Add to the FirecrawlSearchAdapter class
+private logApiUsage(endpoint: string, credits: number) {
+  logger.info('Firecrawl API usage', { 
+    endpoint, 
+    credits,
+    dailyUsage: this.dailyCreditsUsed,
+    dailyLimit: this.config.maxCreditsPerDay
+  });
+  
+  // Emit metrics or events if needed
+  if (this.config.maxCreditsPerDay && 
+      this.dailyCreditsUsed > this.config.maxCreditsPerDay * 0.8) {
+    logger.warn('Firecrawl credit usage approaching daily limit', {
+      used: this.dailyCreditsUsed,
+      limit: this.config.maxCreditsPerDay
+    });
+  }
+}
+```
+
+8. Include retry logic and quota management:
+```typescript
+// Add to the FirecrawlSearchAdapter class
+private dailyCreditsUsed: number = 0;
+private lastRequestTime: number = 0;
+private requestQueue: Array<() => Promise<void>> = [];
+private processingQueue: boolean = false;
+
+private async executeWithRetry<T>(apiCall: () => Promise<T>): Promise<T> {
+  let attempts = 0;
+  
+  while (attempts < this.config.maxRetries) {
+    try {
+      // Enforce rate limiting
+      await this.enforceRateLimit();
+      
+      // Execute the API call
+      const result = await apiCall();
+      
+      // Track credit usage (assuming the API returns credit info)
+      this.trackCreditUsage(1); // Placeholder, actual usage would come from API response
+      
+      return result;
+    } catch (error) {
+      attempts++;
+      
+      if (this.isRetryableError(error) && attempts < this.config.maxRetries) {
+        const delay = this.calculateBackoff(attempts);
+        logger.warn('Retrying Firecrawl API call', { attempts, delay, error: error.message });
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        throw error;
+      }
+    }
+  }
+  
+  throw new Error(`Failed after ${this.config.maxRetries} attempts`);
+}
+
+private isRetryableError(error: any): boolean {
+  // Determine if error is retryable (rate limits, temporary server issues)
+  return error.status === 429 || error.status >= 500 || error.message.includes('timeout');
+}
+
+private calculateBackoff(attempt: number): number {
+  // Exponential backoff with jitter
+  return Math.min(1000 * Math.pow(2, attempt) + Math.random() * 1000, 30000);
+}
+
+private async enforceRateLimit(): Promise<void> {
+  const now = Date.now();
+  const minInterval = (60 * 1000) / this.config.rateLimit;
+  
+  if (now - this.lastRequestTime < minInterval) {
+    const delay = minInterval - (now - this.lastRequestTime);
+    await new Promise(resolve => setTimeout(resolve, delay));
+  }
+  
+  this.lastRequestTime = Date.now();
+}
+
+private trackCreditUsage(credits: number): void {
+  this.dailyCreditsUsed += credits;
+  this.logApiUsage('api_call', credits);
+  
+  // Check if we've exceeded our daily limit
+  if (this.config.maxCreditsPerDay && this.dailyCreditsUsed >= this.config.maxCreditsPerDay) {
+    logger.error('Firecrawl daily credit limit exceeded', {
+      used: this.dailyCreditsUsed,
+      limit: this.config.maxCreditsPerDay
+    });
+    throw new Error('Daily API credit limit exceeded');
+  }
+}
+```
+
+9. Register the adapter with the factory:
+```typescript
+// In search-adapter-factory.ts
+import { ISearchAdapter } from './search-adapter-interface';
+import { FirecrawlSearchAdapter } from './firecrawl-search-adapter';
+
+export class SearchAdapterFactory {
+  static createAdapter(type: string, config: any): ISearchAdapter {
+    switch (type.toLowerCase()) {
+      case 'firecrawl':
+        return new FirecrawlSearchAdapter(config);
+      // Other adapter types will be added here
+      default:
+        throw new Error(`Unknown search adapter type: ${type}`);
+    }
+  }
+}
+```
+
+## 9. Refactor SampleTool and SummarizeTool to Use Pluggable Search Architecture [pending]
+### Dependencies: 6.16, 6.17, 6.5, 6.6
+### Description: Update SampleTool and SummarizeTool to use the new SearchService instead of WebScrapingService, ensuring backward compatibility while leveraging the improved search adapter architecture.
+### Details:
+1. Update SampleTool to use SearchService:
+```typescript
+// Before
+import { WebScrapingService } from './services/web-scraping-service';
+
+export class SampleTool implements MCPTool {
+  private webScraper: WebScrapingService;
+  
+  constructor(webScraper: WebScrapingService) {
+    this.webScraper = webScraper;
+  }
+  
+  // Tool methods using webScraper
+}
+
+// After
+import { ISearchAdapter } from './adapters/search-adapter-interface';
+
+export class SampleTool implements MCPTool {
+  private searchService: ISearchAdapter;
+  
+  constructor(searchService: ISearchAdapter) {
+    this.searchService = searchService;
+  }
+  
+  // Updated tool methods using searchService
+}
+```
+
+2. Update SummarizeTool to use SearchService:
+```typescript
+// Before
+import { WebScrapingService } from './services/web-scraping-service';
+
+export class SummarizeTool implements MCPTool {
+  private webScraper: WebScrapingService;
+  
+  constructor(webScraper: WebScrapingService) {
+    this.webScraper = webScraper;
+  }
+  
+  // Tool methods using webScraper
+}
+
+// After
+import { ISearchAdapter } from './adapters/search-adapter-interface';
+
+export class SummarizeTool implements MCPTool {
+  private searchService: ISearchAdapter;
+  
+  constructor(searchService: ISearchAdapter) {
+    this.searchService = searchService;
+  }
+  
+  // Updated tool methods using searchService
+}
+```
+
+3. Update tool execution logic to handle SearchResult objects:
+   - Replace calls to `webScraper.fetchPage()` with `searchService.fetchContent()`
+   - Replace calls to `webScraper.samplePages()` with `searchService.sampleDomain()`
+   - Update parsing logic to handle the standardized SearchResult format
+
+4. Modify MarketingPostGeneratorServer to register SearchService in DI container:
+```typescript
+// In server initialization
+import { Container } from 'inversify';
+import { ISearchAdapter } from './adapters/search-adapter-interface';
+import { FirecrawlSearchAdapter } from './adapters/firecrawl-search-adapter';
+
+const container = new Container();
+// Register the search adapter
+container.bind<ISearchAdapter>(TYPES.SearchAdapter).to(FirecrawlSearchAdapter).inSingletonScope();
+
+// Update tool registrations to use the search adapter
+container.bind<SampleTool>(TYPES.SampleTool).toDynamicValue((context) => {
+  const searchAdapter = context.container.get<ISearchAdapter>(TYPES.SearchAdapter);
+  return new SampleTool(searchAdapter);
+}).inSingletonScope();
+
+container.bind<SummarizeTool>(TYPES.SummarizeTool).toDynamicValue((context) => {
+  const searchAdapter = context.container.get<ISearchAdapter>(TYPES.SearchAdapter);
+  return new SummarizeTool(searchAdapter);
+}).inSingletonScope();
+```
+
+5. Add proper error handling for search adapter failures:
+```typescript
+async execute(params: SampleToolParams): Promise<SampleToolResult> {
+  try {
+    const samples = await this.searchService.sampleDomain(params.domain, params.count);
+    // Process samples
+    return { /* result */ };
+  } catch (error) {
+    if (error instanceof SearchAdapterError) {
+      // Handle search-specific errors
+      logger.error(`Search adapter error: ${error.message}`, { domain: params.domain });
+      throw new ToolExecutionError(`Failed to sample domain: ${error.message}`);
+    } else {
+      // Handle general errors
+      logger.error(`Unexpected error in SampleTool: ${error.message}`);
+      throw new ToolExecutionError('An unexpected error occurred while sampling the domain');
+    }
+  }
+}
+```
+
+6. Ensure backward compatibility by maintaining the same input/output schemas for both tools:
+   - Keep the same parameter structure in tool definitions
+   - Ensure the returned data structure matches the original format
+   - Add any necessary data transformation between the search adapter results and the expected tool output format
+

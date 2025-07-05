@@ -38,6 +38,20 @@ export interface ServerConfig {
     level: 'error' | 'warn' | 'info' | 'debug' | 'trace';
     format: 'simple' | 'json' | 'pretty';
   };
+  errorHandling: {
+    enableErrorReporting: boolean;
+    enableStackTrace: boolean;
+    maxRecentErrors: number;
+    excludeStackTraceForCodes: string[];
+    notificationEnabled: boolean;
+  };
+  rateLimit: {
+    enableRateLimit: boolean;
+    defaultWindowMs: number;
+    defaultMaxRequests: number;
+    enableStandardHeaders: boolean;
+    enableLegacyHeaders: boolean;
+  };
   cors?: {
     allowedOrigins: string[];
     allowedHeaders: string[];

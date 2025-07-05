@@ -40,7 +40,9 @@
       "Bash(grep:*)",
       "Bash(node:*)",
       "Bash(rm:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "mcp__task-master-ai__validate_dependencies",
+      "Bash(npx tsc:*)"
     ],
     "deny": []
   },

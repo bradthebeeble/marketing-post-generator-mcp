@@ -1,100 +1,117 @@
 # Task ID: 14
-# Title: Tool and Prompt Registration System
+# Title: Post Narrative Generator Tool Implementation
 # Status: pending
-# Dependencies: 2, 3, 4, 5, 6, 10, 11, 12, 13
-# Priority: high
-# Description: Implement a system to register and manage all tools and prompts in the MCP server.
+# Dependencies: 3, 4, 13
+# Priority: medium
+# Description: Implement the tool for generating narratives and bullet points for upcoming posts based on the content plan.
 # Details:
-1. Create a registry class to manage tools and prompts
-2. Implement registration methods for tools and prompts
-3. Add validation to ensure all tools and prompts meet the MCP specification
-4. Implement discovery mechanisms for clients to explore available tools and prompts
-5. Add versioning support for tools and prompts
+1. Create a tool definition for narrative generation
+2. Implement logic to read from the content plan
+3. Use Claude Code to generate detailed narratives and bullet points
+4. Store the narratives in the .postgen/narratives directory
+5. Implement options for different narrative styles and levels of detail
 
 ```typescript
-import { MCPTool, MCPPrompt, MCPServer } from '@modelcontextprotocol/sdk';
+import { MCPTool } from '@modelcontextprotocol/sdk';
+import { ClaudeService } from './services/claude-service';
+import * as fs from 'fs/promises';
+import * as path from 'path';
 
-export class ToolAndPromptRegistry {
-  private tools: Map<string, MCPTool> = new Map();
-  private prompts: Map<string, MCPPrompt> = new Map();
-  private server: MCPServer;
-  
-  constructor(server: MCPServer) {
-    this.server = server;
-  }
-  
-  registerTool(tool: MCPTool): void {
-    // Validate tool
-    this.validateTool(tool);
-    
-    // Register with the server
-    this.server.registerTool(tool);
-    
-    // Store in our registry
-    this.tools.set(tool.name, tool);
-    
-    console.log(`Registered tool: ${tool.name}`);
-  }
-  
-  registerPrompt(prompt: MCPPrompt): void {
-    // Validate prompt
-    this.validatePrompt(prompt);
-    
-    // Register with the server
-    this.server.registerPrompt(prompt);
-    
-    // Store in our registry
-    this.prompts.set(prompt.name, prompt);
-    
-    console.log(`Registered prompt: ${prompt.name}`);
-  }
-  
-  registerAll(tools: MCPTool[], prompts: MCPPrompt[]): void {
-    tools.forEach(tool => this.registerTool(tool));
-    prompts.forEach(prompt => this.registerPrompt(prompt));
-  }
-  
-  private validateTool(tool: MCPTool): void {
-    // Validate tool has required properties
-    if (!tool.name || !tool.description || !tool.handler) {
-      throw new Error(`Invalid tool: ${tool.name}. Missing required properties.`);
+export const narrativeGeneratorTool: MCPTool = {
+  name: 'marketing_post_generator_mcp__generate_narrative',
+  description: 'Generate narratives and bullet points for upcoming posts',
+  parameters: {
+    postId: {
+      type: 'string',
+      description: 'ID of the post from the content plan',
+    },
+    style: {
+      type: 'string',
+      description: 'Style of the narrative',
+      enum: ['concise', 'detailed', 'storytelling'],
+      default: 'detailed',
+    },
+  },
+  handler: async ({ postId, style }, { claudeService }) => {
+    // Validate .postgen directory exists
+    const postgenDir = path.join(process.cwd(), '.postgen');
+    try {
+      await fs.access(postgenDir);
+    } catch (error) {
+      throw new Error('Please run the init prompt first');
     }
     
-    // Validate tool name follows convention
-    if (!tool.name.startsWith('marketing_post_generator_mcp__')) {
-      throw new Error(`Invalid tool name: ${tool.name}. Must start with 'marketing_post_generator_mcp__'.`);
-    }
-  }
-  
-  private validatePrompt(prompt: MCPPrompt): void {
-    // Validate prompt has required properties
-    if (!prompt.name || !prompt.description || !prompt.handler) {
-      throw new Error(`Invalid prompt: ${prompt.name}. Missing required properties.`);
+    // Get the latest content plan
+    const contentPlan = await getLatestContentPlan(postgenDir);
+    if (!contentPlan) {
+      throw new Error('No content plan found. Please create a content plan first.');
     }
     
-    // Validate prompt name follows convention
-    if (!prompt.name.startsWith('marketing_post_generator_mcp__')) {
-      throw new Error(`Invalid prompt name: ${prompt.name}. Must start with 'marketing_post_generator_mcp__'.`);
+    // Find the post in the content plan
+    const post = contentPlan.plan.find(p => p.id === postId);
+    if (!post) {
+      throw new Error(`Post with ID ${postId} not found in the content plan.`);
     }
-  }
+    
+    // Get tone analysis for the domain
+    const toneAnalysis = await getExistingToneAnalysis(contentPlan.domain, postgenDir);
+    
+    // Generate narrative with Claude
+    const prompt = buildNarrativePrompt({
+      post,
+      style,
+      toneAnalysis,
+      domain: contentPlan.domain,
+    });
+    
+    const narrative = await claudeService.generateContent(prompt);
+    
+    // Parse the narrative into a structured format
+    const structuredNarrative = parseNarrative(narrative);
+    
+    // Save the narrative
+    const narrativePath = path.join(postgenDir, 'narratives', `${postId}-${Date.now()}.json`);
+    await fs.mkdir(path.dirname(narrativePath), { recursive: true });
+    
+    const result = {
+      postId,
+      title: post.title,
+      style,
+      narrative: structuredNarrative,
+      rawNarrative: narrative,
+      createdAt: new Date().toISOString(),
+    };
+    
+    await fs.writeFile(narrativePath, JSON.stringify(result, null, 2));
+    
+    return result;
+  },
+};
+
+function buildNarrativePrompt(options) {
+  // Build a prompt for narrative generation based on options
+  const stylePrompts = {
+    concise: 'Create a concise outline with key bullet points',
+    detailed: 'Create a detailed narrative with main sections and supporting points',
+    storytelling: 'Create a narrative that tells a compelling story around the topic',
+  };
   
-  getToolsInfo(): any[] {
-    return Array.from(this.tools.values()).map(tool => ({
-      name: tool.name,
-      description: tool.description,
-      parameters: tool.parameters,
-    }));
-  }
-  
-  getPromptsInfo(): any[] {
-    return Array.from(this.prompts.values()).map(prompt => ({
-      name: prompt.name,
-      description: prompt.description,
-      parameters: prompt.parameters,
-    }));
-  }
+  return `Based on the following post idea from the content plan for ${options.domain}:\n\nTitle: ${options.post.title}\nTopic: ${options.post.topic}\nKeywords: ${options.post.keywords.join(', ')}\n\n${stylePrompts[options.style]}\n\nUse this tone of voice: ${options.toneAnalysis}`;
+}
+
+function parseNarrative(rawNarrative) {
+  // Parse the raw narrative into a structured format
+  // This could extract sections, bullet points, etc.
+}
+
+async function getLatestContentPlan(postgenDir) {
+  // Get the latest content plan
+}
+
+async function getExistingToneAnalysis(domain, postgenDir) {
+  // Get existing tone analysis for the domain
 }
 ```
 
 # Test Strategy:
-Test registration of tools and prompts. Test validation of tool and prompt properties. Test discovery mechanisms. Verify tools and prompts are correctly registered with the MCP server.
+Test narrative generation with different styles. Test with different post types from the content plan. Verify narratives are correctly stored in the .postgen directory. Test error handling for missing content plans or invalid post IDs.

@@ -73,6 +73,21 @@ export const DEFAULT_CONFIG: ServerConfig = {
     level: (process.env.LOG_LEVEL as 'error' | 'warn' | 'info' | 'debug' | 'trace') || 'info',
     format: (process.env.LOG_FORMAT as 'simple' | 'json' | 'pretty') || 'simple',
   },
+  errorHandling: {
+    enableErrorReporting: parseBoolean(process.env.ERROR_REPORTING_ENABLED, true),
+    enableStackTrace: parseBoolean(process.env.ERROR_STACK_TRACE_ENABLED, true),
+    maxRecentErrors: parseInt(process.env.ERROR_MAX_RECENT || '100', 10),
+    excludeStackTraceForCodes: process.env.ERROR_EXCLUDE_STACK_CODES ? 
+      process.env.ERROR_EXCLUDE_STACK_CODES.split(',') : ['VALIDATION_ERROR', 'RATE_LIMIT_ERROR'],
+    notificationEnabled: parseBoolean(process.env.ERROR_NOTIFICATION_ENABLED, false),
+  },
+  rateLimit: {
+    enableRateLimit: parseBoolean(process.env.RATE_LIMIT_ENABLED, true),
+    defaultWindowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000', 10), // 1 minute
+    defaultMaxRequests: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '60', 10),
+    enableStandardHeaders: parseBoolean(process.env.RATE_LIMIT_STANDARD_HEADERS, true),
+    enableLegacyHeaders: parseBoolean(process.env.RATE_LIMIT_LEGACY_HEADERS, false),
+  },
 };
 
 function createRemoteHttpConfig() {
@@ -183,6 +198,62 @@ export function validateConfig(config: ServerConfig): void {
       config.claude.rateLimit.tokensPerMinute > 1000000
     ) {
       throw new Error('Claude rate limit tokens per minute must be between 1000 and 1000000');
+    }
+  }
+
+  // Validate errorHandling configuration
+  if (config.errorHandling) {
+    if (typeof config.errorHandling.enableErrorReporting !== 'boolean') {
+      throw new Error('Error handling enableErrorReporting must be a boolean');
+    }
+    if (typeof config.errorHandling.enableStackTrace !== 'boolean') {
+      throw new Error('Error handling enableStackTrace must be a boolean');
+    }
+    if (typeof config.errorHandling.notificationEnabled !== 'boolean') {
+      throw new Error('Error handling notificationEnabled must be a boolean');
+    }
+    if (
+      config.errorHandling.maxRecentErrors !== undefined &&
+      (config.errorHandling.maxRecentErrors < 10 || config.errorHandling.maxRecentErrors > 1000)
+    ) {
+      throw new Error('Error handling maxRecentErrors must be between 10 and 1000');
+    }
+    if (
+      config.errorHandling.excludeStackTraceForCodes !== undefined &&
+      !Array.isArray(config.errorHandling.excludeStackTraceForCodes)
+    ) {
+      throw new Error('Error handling excludeStackTraceForCodes must be an array');
+    }
+    if (
+      config.errorHandling.excludeStackTraceForCodes &&
+      config.errorHandling.excludeStackTraceForCodes.some(code => typeof code !== 'string')
+    ) {
+      throw new Error('Error handling excludeStackTraceForCodes must be an array of strings');
+    }
+  }
+
+  // Validate rateLimit configuration
+  if (config.rateLimit) {
+    if (typeof config.rateLimit.enableRateLimit !== 'boolean') {
+      throw new Error('Rate limit enableRateLimit must be a boolean');
+    }
+    if (typeof config.rateLimit.enableStandardHeaders !== 'boolean') {
+      throw new Error('Rate limit enableStandardHeaders must be a boolean');
+    }
+    if (typeof config.rateLimit.enableLegacyHeaders !== 'boolean') {
+      throw new Error('Rate limit enableLegacyHeaders must be a boolean');
+    }
+    if (
+      config.rateLimit.defaultWindowMs !== undefined &&
+      (config.rateLimit.defaultWindowMs < 1000 || config.rateLimit.defaultWindowMs > 3600000)
+    ) {
+      throw new Error('Rate limit defaultWindowMs must be between 1000ms (1 second) and 3600000ms (1 hour)');
+    }
+    if (
+      config.rateLimit.defaultMaxRequests !== undefined &&
+      (config.rateLimit.defaultMaxRequests < 1 || config.rateLimit.defaultMaxRequests > 10000)
+    ) {
+      throw new Error('Rate limit defaultMaxRequests must be between 1 and 10000');
     }
   }
 }

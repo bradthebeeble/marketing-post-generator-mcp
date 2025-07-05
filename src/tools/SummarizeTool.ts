@@ -208,7 +208,7 @@ Summary:`;
   private extractTitleFromContent(content: string, url: string): string {
     // Try to extract title from the first few lines of content
     const lines = content.split('\n').slice(0, 10);
-    
+
     for (const line of lines) {
       const trimmed = line.trim();
       // Look for lines that could be titles (not too short, not too long, first in content)
@@ -216,11 +216,11 @@ Summary:`;
         return trimmed;
       }
     }
-    
+
     // Fallback: extract from URL
     try {
       const urlObj = new URL(url);
-      const pathParts = urlObj.pathname.split('/').filter(part => part.length > 0);
+      const pathParts = urlObj.pathname.split('/').filter((part) => part.length > 0);
       if (pathParts.length > 0) {
         const lastPart = pathParts[pathParts.length - 1];
         if (lastPart) {
@@ -229,7 +229,7 @@ Summary:`;
             .replace(/[-_]/g, ' ')
             .replace(/\.(html?|php|aspx?)$/i, '')
             .split(' ')
-            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
             .join(' ');
           return title;
         }
@@ -237,7 +237,7 @@ Summary:`;
     } catch (error) {
       this.logger.debug('Failed to extract title from URL', { url, error });
     }
-    
+
     return 'Untitled Post';
   }
 

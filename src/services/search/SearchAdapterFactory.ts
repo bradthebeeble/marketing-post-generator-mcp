@@ -7,8 +7,11 @@ import winston from 'winston';
  * Provides centralized registration and creation of search adapters.
  */
 export class SearchAdapterFactory {
-  private static adapters = new Map<string, new () => ISearchAdapter>();
-  private static logger: winston.Logger = createLogger({ level: 'info', format: 'simple' });
+  private static readonly adapters = new Map<string, new () => ISearchAdapter>();
+  private static readonly logger: winston.Logger = createLogger({
+    level: 'info',
+    format: 'simple',
+  });
 
   /**
    * Register a new adapter implementation
@@ -17,11 +20,11 @@ export class SearchAdapterFactory {
    */
   public static registerAdapter(name: string, adapterClass: new () => ISearchAdapter): void {
     const normalizedName = name.toLowerCase();
-    
+
     if (this.adapters.has(normalizedName)) {
       this.logger.warn(`Adapter '${name}' is already registered, overwriting`);
     }
-    
+
     this.adapters.set(normalizedName, adapterClass);
     this.logger.info(`Search adapter registered: ${name}`);
   }
@@ -35,21 +38,21 @@ export class SearchAdapterFactory {
   public static createAdapter(name: string): ISearchAdapter {
     const normalizedName = name.toLowerCase();
     const AdapterClass = this.adapters.get(normalizedName);
-    
+
     if (!AdapterClass) {
       const availableAdapters = Array.from(this.adapters.keys()).join(', ');
       throw new Error(
         `Search adapter '${name}' not found. Available adapters: ${availableAdapters}`
       );
     }
-    
+
     try {
       const adapter = new AdapterClass();
       this.logger.debug(`Created search adapter instance: ${name}`);
       return adapter;
     } catch (error) {
       this.logger.error(`Failed to create search adapter '${name}'`, {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw new Error(`Failed to create search adapter '${name}': ${error}`);
     }
@@ -80,13 +83,13 @@ export class SearchAdapterFactory {
   public static unregisterAdapter(name: string): boolean {
     const normalizedName = name.toLowerCase();
     const removed = this.adapters.delete(normalizedName);
-    
+
     if (removed) {
       this.logger.info(`Search adapter unregistered: ${name}`);
     } else {
       this.logger.warn(`Attempted to unregister non-existent adapter: ${name}`);
     }
-    
+
     return removed;
   }
 

@@ -1,4 +1,4 @@
-import { BaseError } from './BaseError';
+import { BaseError, ValidationError } from './BaseError';
 import { Logger } from '../../utils/logger';
 
 export interface ErrorContext {
@@ -17,7 +17,7 @@ export interface ErrorHandlerOptions {
 }
 
 export class ErrorHandler {
-  private logger: Logger;
+  private readonly logger: Logger;
 
   constructor(logger: Logger) {
     this.logger = logger;
@@ -32,7 +32,7 @@ export class ErrorHandler {
       shouldLog = true,
       shouldReport = true,
       shouldNotify = false,
-      severity = 'medium'
+      severity = 'medium',
     } = options;
 
     // Convert to BaseError if not already
@@ -77,13 +77,12 @@ export class ErrorHandler {
 
     // Use the withContext method instead of direct constructor call
     const enhancedError = error.withContext(enhancedContext);
-    
+
     return enhancedError;
   }
 
   private convertToBaseError(error: Error, context: ErrorContext): BaseError {
-    const { ValidationError } = require('./BaseError');
-    
+
     const errorContext = {
       ...context,
       originalError: error.name,
@@ -172,15 +171,19 @@ export class ErrorHandler {
 
     // For generic errors, try to categorize by message patterns
     const message = error.message.toLowerCase();
-    
+
     if (message.includes('validation') || message.includes('invalid')) {
       return 'user';
     }
-    
-    if (message.includes('network') || message.includes('timeout') || message.includes('connection')) {
+
+    if (
+      message.includes('network') ||
+      message.includes('timeout') ||
+      message.includes('connection')
+    ) {
       return 'external';
     }
-    
+
     return 'system';
   }
 
@@ -190,9 +193,11 @@ export class ErrorHandler {
     }
 
     const message = error.message.toLowerCase();
-    return message.includes('timeout') || 
-           message.includes('connection') || 
-           message.includes('network') ||
-           message.includes('rate limit');
+    return (
+      message.includes('timeout') ||
+      message.includes('connection') ||
+      message.includes('network') ||
+      message.includes('rate limit')
+    );
   }
 }

@@ -42,7 +42,9 @@
       "Bash(rm:*)",
       "Bash(rg:*)",
       "mcp__task-master-ai__validate_dependencies",
-      "Bash(npx tsc:*)"
+      "Bash(npx tsc:*)",
+      "Bash(git checkout:*)",
+      "Bash(npm run dev:*)"
     ],
     "deny": []
   },

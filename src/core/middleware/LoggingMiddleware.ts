@@ -34,8 +34,8 @@ export interface ResponseLogData {
 }
 
 export class LoggingMiddleware {
-  private logger: Logger;
-  private config: LoggingConfig;
+  private readonly logger: Logger;
+  private readonly config: LoggingConfig;
 
   constructor(logger: Logger, config: LoggingConfig = {}) {
     this.logger = logger;
@@ -55,10 +55,10 @@ export class LoggingMiddleware {
     return (req: Request, res: Response, next: NextFunction) => {
       const startTime = Date.now();
       const requestId = req.get('X-Request-ID') || this.generateRequestId();
-      
+
       // Add request ID to request object for downstream usage
       (req as any).requestId = requestId;
-      
+
       // Skip logging for specified paths
       if (this.shouldSkipLogging(req.path)) {
         return next();
@@ -73,7 +73,7 @@ export class LoggingMiddleware {
       let responseBody: any;
       let responseCaptured = false;
 
-      res.send = function(body): Response {
+      res.send = function (body): Response {
         if (!responseCaptured) {
           responseBody = body;
           responseCaptured = true;
@@ -81,7 +81,7 @@ export class LoggingMiddleware {
         return originalSend.call(this, body) as Response;
       };
 
-      res.json = function(body): Response {
+      res.json = function (body): Response {
         if (!responseCaptured) {
           responseBody = body;
           responseCaptured = true;
@@ -92,7 +92,7 @@ export class LoggingMiddleware {
       // Log response when request finishes
       res.on('finish', () => {
         const responseTime = Date.now() - startTime;
-        this.logResponse(req, res, responseTime, requestId, responseBody);
+        this.logResponse(res, responseTime, requestId, responseBody);
       });
 
       next();
@@ -100,7 +100,7 @@ export class LoggingMiddleware {
   }
 
   private shouldSkipLogging(path: string): boolean {
-    return this.config.skipPaths?.some(skipPath => path.startsWith(skipPath)) || false;
+    return this.config.skipPaths?.some((skipPath) => path.startsWith(skipPath)) || false;
   }
 
   private generateRequestId(): string {
@@ -112,11 +112,19 @@ export class LoggingMiddleware {
       requestId,
       method: req.method,
       url: req.url,
-      userAgent: req.get('User-Agent'),
       ip: this.getClientIP(req),
       timestamp: new Date().toISOString(),
-      contentLength: req.get('Content-Length') ? parseInt(req.get('Content-Length')!) : undefined,
     };
+
+    const userAgent = req.get('User-Agent');
+    if (userAgent) {
+      requestData.userAgent = userAgent;
+    }
+
+    const contentLength = req.get('Content-Length');
+    if (contentLength) {
+      requestData.contentLength = parseInt(contentLength);
+    }
 
     // Add headers if configured
     if (this.config.logHeaders) {
@@ -132,7 +140,6 @@ export class LoggingMiddleware {
   }
 
   private logResponse(
-    req: Request,
     res: Response,
     responseTime: number,
     requestId: string,
@@ -143,8 +150,12 @@ export class LoggingMiddleware {
       statusCode: res.statusCode,
       responseTime,
       timestamp: new Date().toISOString(),
-      contentLength: res.get('Content-Length') ? parseInt(res.get('Content-Length')!) : undefined,
     };
+
+    const contentLength = res.get('Content-Length');
+    if (contentLength) {
+      responseData.contentLength = parseInt(contentLength);
+    }
 
     // Add headers if configured
     if (this.config.logHeaders) {
@@ -173,7 +184,7 @@ export class LoggingMiddleware {
 
   private sanitizeHeaders(headers: any): Record<string, string> {
     const sanitized: Record<string, string> = {};
-    
+
     for (const [key, value] of Object.entries(headers)) {
       const lowerKey = key.toLowerCase();
       if (this.config.sensitiveHeaders?.includes(lowerKey)) {
@@ -182,13 +193,13 @@ export class LoggingMiddleware {
         sanitized[key] = Array.isArray(value) ? value.join(', ') : String(value);
       }
     }
-    
+
     return sanitized;
   }
 
   private sanitizeBody(body: any): any {
     if (!body) return body;
-    
+
     // Handle string bodies
     if (typeof body === 'string') {
       if (body.length > (this.config.maxBodyLength || 10000)) {
@@ -201,27 +212,27 @@ export class LoggingMiddleware {
       }
       return body;
     }
-    
+
     // Handle object bodies
     if (typeof body === 'object') {
       const sanitized = { ...body };
-      
+
       // Remove sensitive fields
-      this.config.sensitiveBodyFields?.forEach(field => {
+      this.config.sensitiveBodyFields?.forEach((field) => {
         if (sanitized[field]) {
           sanitized[field] = '[REDACTED]';
         }
       });
-      
+
       // Truncate large objects
       const stringified = JSON.stringify(sanitized);
       if (stringified.length > (this.config.maxBodyLength || 10000)) {
         return stringified.substring(0, this.config.maxBodyLength) + '... [TRUNCATED]';
       }
-      
+
       return sanitized;
     }
-    
+
     return body;
   }
 

@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from 'express';
-import { RateLimitService, RateLimitConfig, rateLimitConfigs } from '../../services/rateLimit/RateLimitService';
+import {
+  RateLimitService,
+  RateLimitConfig,
+  rateLimitConfigs,
+} from '../../services/rateLimit/RateLimitService';
 import { RateLimitError } from '../errors/BaseError';
 import { getRequestId } from './RequestIdMiddleware';
 
@@ -12,8 +16,8 @@ export interface RateLimitMiddlewareConfig extends RateLimitConfig {
 }
 
 export class RateLimitMiddleware {
-  private rateLimitService: RateLimitService;
-  private config: RateLimitMiddlewareConfig;
+  private readonly rateLimitService: RateLimitService;
+  private readonly config: RateLimitMiddlewareConfig;
 
   constructor(rateLimitService: RateLimitService, config: RateLimitMiddlewareConfig) {
     this.rateLimitService = rateLimitService;
@@ -77,15 +81,16 @@ export class RateLimitMiddleware {
 
   private getClientIdentifier(req: Request): string {
     // Try to get IP address from various headers
-    const ip = req.get('X-Forwarded-For')?.split(',')[0] ||
-               req.get('X-Real-IP') ||
-               req.connection.remoteAddress ||
-               req.socket.remoteAddress ||
-               'unknown';
+    const ip =
+      req.get('X-Forwarded-For')?.split(',')[0] ||
+      req.get('X-Real-IP') ||
+      req.connection.remoteAddress ||
+      req.socket.remoteAddress ||
+      'unknown';
 
     // You might want to include user ID if available
     const userId = (req as any).user?.id;
-    
+
     return userId ? `user:${userId}` : `ip:${ip}`;
   }
 
@@ -136,7 +141,7 @@ export function createPathSpecificRateLimit(
 ) {
   return (req: Request, res: Response, next: NextFunction) => {
     const path = req.path;
-    
+
     // Find matching path configuration
     const matchingConfig = Object.entries(pathConfigs).find(([pattern, config]) => {
       if (pattern.includes('*')) {

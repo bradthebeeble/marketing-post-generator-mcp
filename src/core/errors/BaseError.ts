@@ -34,9 +34,16 @@ export abstract class BaseError extends Error {
 
   withContext(additionalContext: Record<string, unknown>): this {
     const mergedContext = { ...this.context, ...additionalContext };
-    const ErrorConstructor = this.constructor as new (message: string, context?: any, cause?: Error, severity?: 'low' | 'medium' | 'high' | 'critical') => this;
+    const ErrorConstructor = this.constructor as new (
+      message: string,
+      context?: any,
+      cause?: Error,
+      severity?: 'low' | 'medium' | 'high' | 'critical'
+    ) => this;
     const newError = new ErrorConstructor(this.message, mergedContext, this.cause, this.severity);
-    newError.stack = this.stack;
+    if (this.stack) {
+      newError.stack = this.stack;
+    }
     return newError;
   }
 

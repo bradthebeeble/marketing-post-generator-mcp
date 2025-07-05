@@ -72,12 +72,12 @@ export class WebScrapingAdapter implements ISearchAdapter {
     try {
       // Test with a simple HTTP request to a reliable endpoint
       const response = await this.httpClient.get('https://httpbin.org/user-agent', {
-        timeout: 5000
+        timeout: 5000,
       });
       return response.status === 200;
     } catch (error) {
       this.logger.debug('Health check failed', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
@@ -85,16 +85,16 @@ export class WebScrapingAdapter implements ISearchAdapter {
 
   async fetchContent(url: string): Promise<string> {
     this.ensureInitialized();
-    
+
     try {
       this.logger.info('Fetching single blog post', { url });
       await this.respectRateLimit();
       const post = await this.fetchBlogPost(url);
-      
+
       if (!post) {
         throw new Error(`No content found at URL: ${url}`);
       }
-      
+
       return post.content;
     } catch (error) {
       this.logger.error('Failed to fetch content', {
@@ -167,10 +167,10 @@ export class WebScrapingAdapter implements ISearchAdapter {
 
   async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
     this.ensureInitialized();
-    
+
     // Basic implementation - can be enhanced to use actual search engines
     this.logger.warn('Basic search implementation - limited functionality', { query, options });
-    
+
     // For now, return empty results as this adapter is primarily for domain sampling
     // Future implementations could integrate with search engines
     return [];

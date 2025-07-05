@@ -14,9 +14,13 @@ import { DIContainer } from './container/DIContainer.js';
 import { ServerConfig } from '../types/index.js';
 import { createLogger } from '../utils/logger.js';
 import { ClaudeService, IClaudeService } from '../services/claude/index.js';
-import { SearchService, createSearchService, registerBuiltInAdapters } from '../services/search/index.js';
+import {
+  SearchService,
+  createSearchService,
+  registerBuiltInAdapters,
+} from '../services/search/index.js';
 import { InitPrompt } from '../prompts/index.js';
-import { SampleTool, SummarizeTool } from '../tools/index.js';
+import { SampleTool, SummarizeTool, GenerateToneTool } from '../tools/index.js';
 import { PromptFactory } from '../types/index.js';
 import winston from 'winston';
 import express from 'express';
@@ -322,6 +326,7 @@ export class MarketingPostGeneratorServer {
       const toolInstances = [
         new SampleTool(searchService, logger),
         new SummarizeTool(searchService, logger),
+        new GenerateToneTool(searchService, logger),
         // Add more tools here as they're implemented
       ];
 

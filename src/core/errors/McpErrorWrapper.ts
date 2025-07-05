@@ -1,13 +1,13 @@
-import { 
-  ToolExecutionError, 
-  ContentGenerationError, 
+import {
+  ToolExecutionError,
+  ContentGenerationError,
   ServiceUnavailableError,
   NetworkError,
   TimeoutError,
   AuthenticationError,
   AuthorizationError,
   ValidationError,
-  ConfigurationError
+  ConfigurationError,
 } from './BaseError';
 import { ErrorHandler } from './ErrorHandler';
 import { Logger } from '../../utils/logger';
@@ -43,43 +43,36 @@ export interface ErrorClassification {
 }
 
 export class McpErrorWrapper {
-  private errorHandler: ErrorHandler;
-  private logger: Logger;
+  private readonly errorHandler: ErrorHandler;
+  private readonly logger: Logger;
   private config: McpErrorConfig;
 
-  constructor(
-    errorHandler: ErrorHandler, 
-    logger: Logger, 
-    config?: Partial<McpErrorConfig>
-  ) {
+  constructor(errorHandler: ErrorHandler, logger: Logger, config?: Partial<McpErrorConfig>) {
     this.errorHandler = errorHandler;
     this.logger = logger;
     this.config = {
       criticalTools: ['generate_content', 'save_post', 'publish_post'],
       criticalPrompts: ['content_generation', 'post_creation'],
       errorTypeMappings: {
-        'ENOTFOUND': 'NetworkError',
-        'ECONNREFUSED': 'NetworkError',
-        'ECONNRESET': 'NetworkError',
-        'ETIMEDOUT': 'TimeoutError',
-        'TIMEOUT': 'TimeoutError',
-        'UNAUTHORIZED': 'AuthenticationError',
-        'FORBIDDEN': 'AuthorizationError',
-        'VALIDATION_FAILED': 'ValidationError',
-        'INVALID_INPUT': 'ValidationError',
-        'CONFIG_ERROR': 'ConfigurationError'
+        ENOTFOUND: 'NetworkError',
+        ECONNREFUSED: 'NetworkError',
+        ECONNRESET: 'NetworkError',
+        ETIMEDOUT: 'TimeoutError',
+        TIMEOUT: 'TimeoutError',
+        UNAUTHORIZED: 'AuthenticationError',
+        FORBIDDEN: 'AuthorizationError',
+        VALIDATION_FAILED: 'ValidationError',
+        INVALID_INPUT: 'ValidationError',
+        CONFIG_ERROR: 'ConfigurationError',
       },
       severityOverrides: {},
-      ...config
+      ...config,
     };
   }
 
-  async wrapToolExecution<T>(
-    toolFunction: () => Promise<T>,
-    context: McpToolContext
-  ): Promise<T> {
+  async wrapToolExecution<T>(toolFunction: () => Promise<T>, context: McpToolContext): Promise<T> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.debug('Tool execution started', {
         toolName: context.toolName,
@@ -101,12 +94,13 @@ export class McpErrorWrapper {
       return result;
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      
+
       // Convert to typed error first
-      const typedError = error instanceof Error ? 
-        this.convertToTypedError(error, { ...context, executionTime }) : 
-        new Error(String(error));
-      
+      const typedError =
+        error instanceof Error
+          ? this.convertToTypedError(error, { ...context, executionTime })
+          : new Error(String(error));
+
       // Create tool execution error
       const toolError = new ToolExecutionError(
         `Tool '${context.toolName}' execution failed: ${typedError.message}`,
@@ -137,7 +131,7 @@ export class McpErrorWrapper {
     context: McpPromptContext
   ): Promise<T> {
     const startTime = Date.now();
-    
+
     try {
       this.logger.debug('Prompt execution started', {
         promptName: context.promptName,
@@ -159,12 +153,13 @@ export class McpErrorWrapper {
       return result;
     } catch (error) {
       const executionTime = Date.now() - startTime;
-      
+
       // Convert to typed error first
-      const typedError = error instanceof Error ? 
-        this.convertToTypedError(error, { ...context, executionTime }) : 
-        new Error(String(error));
-      
+      const typedError =
+        error instanceof Error
+          ? this.convertToTypedError(error, { ...context, executionTime })
+          : new Error(String(error));
+
       // Create content generation error for prompts
       const promptError = new ContentGenerationError(
         `Prompt '${context.promptName}' execution failed: ${typedError.message}`,
@@ -211,7 +206,7 @@ export class McpErrorWrapper {
     } = retryOptions;
 
     let lastError: Error = new Error('No attempts made');
-    
+
     for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
       try {
         if (attempt > 1) {
@@ -226,10 +221,10 @@ export class McpErrorWrapper {
         return await operation();
       } catch (error) {
         lastError = error instanceof Error ? error : new Error(String(error));
-        
+
         if (attempt <= maxRetries && shouldRetry(lastError)) {
           const delay = Math.min(baseDelay * Math.pow(2, attempt - 1), maxDelay);
-          
+
           this.logger.warn('Operation failed, retrying', {
             operationName: context.operationName,
             attempt,
@@ -237,11 +232,11 @@ export class McpErrorWrapper {
             retryDelay: delay,
             requestId: context.requestId,
           });
-          
+
           await this.delay(delay);
           continue;
         }
-        
+
         // Max retries reached or error is not retryable
         const finalError = new ServiceUnavailableError(
           `Operation '${context.operationName}' failed after ${attempt} attempts: ${lastError.message}`,
@@ -253,14 +248,10 @@ export class McpErrorWrapper {
           lastError
         );
 
-        throw this.errorHandler.handleError(
-          finalError,
-          context,
-          {
-            severity: 'high',
-            shouldNotify: attempt > maxRetries,
-          }
-        );
+        throw this.errorHandler.handleError(finalError, context, {
+          severity: 'high',
+          shouldNotify: attempt > maxRetries,
+        });
       }
     }
 
@@ -280,27 +271,27 @@ export class McpErrorWrapper {
     if (error instanceof Error) {
       // Use proper error type checking instead of string matching
       const classification = this.classifyError(error);
-      
+
       // Authentication/authorization errors are high severity
       if (classification.isAuthError) {
         return 'high';
       }
-      
+
       // Validation errors are low severity
       if (classification.isValidationError) {
         return 'low';
       }
-      
+
       // Network errors are medium severity by default
       if (classification.isNetworkError) {
         return 'medium';
       }
-      
+
       // Timeout errors are medium severity
       if (classification.isTimeoutError) {
         return 'medium';
       }
-      
+
       // Configuration errors are high severity
       if (classification.isConfigurationError) {
         return 'high';
@@ -311,7 +302,7 @@ export class McpErrorWrapper {
     if ('toolName' in context && this.config.criticalTools.includes(context.toolName)) {
       return 'high';
     }
-    
+
     if ('promptName' in context && this.config.criticalPrompts.includes(context.promptName)) {
       return 'high';
     }
@@ -336,10 +327,10 @@ export class McpErrorWrapper {
         isAuthError: false,
         isValidationError: false,
         isConfigurationError: false,
-        originalError: error
+        originalError: error,
       };
     }
-    
+
     if (error instanceof TimeoutError) {
       return {
         isNetworkError: false,
@@ -347,10 +338,10 @@ export class McpErrorWrapper {
         isAuthError: false,
         isValidationError: false,
         isConfigurationError: false,
-        originalError: error
+        originalError: error,
       };
     }
-    
+
     if (error instanceof AuthenticationError || error instanceof AuthorizationError) {
       return {
         isNetworkError: false,
@@ -358,10 +349,10 @@ export class McpErrorWrapper {
         isAuthError: true,
         isValidationError: false,
         isConfigurationError: false,
-        originalError: error
+        originalError: error,
       };
     }
-    
+
     if (error instanceof ValidationError) {
       return {
         isNetworkError: false,
@@ -369,10 +360,10 @@ export class McpErrorWrapper {
         isAuthError: false,
         isValidationError: true,
         isConfigurationError: false,
-        originalError: error
+        originalError: error,
       };
     }
-    
+
     if (error instanceof ConfigurationError) {
       return {
         isNetworkError: false,
@@ -380,35 +371,41 @@ export class McpErrorWrapper {
         isAuthError: false,
         isValidationError: false,
         isConfigurationError: true,
-        originalError: error
+        originalError: error,
       };
     }
 
     // For standard Error types, use error code and message patterns
     const errorCode = (error as any).code || '';
     const errorMessage = error.message.toLowerCase();
-    
+
     // Check error codes first (more reliable)
     for (const [code, errorType] of Object.entries(this.config.errorTypeMappings)) {
       if (errorCode === code) {
         return this.createClassificationFromType(errorType, error);
       }
     }
-    
+
     // Fallback to message pattern matching (less reliable)
-    const isNetworkError = /network|connection|dns|host|enotfound|econnrefused|econnreset/.test(errorMessage);
+    const isNetworkError = /network|connection|dns|host|enotfound|econnrefused|econnreset/.test(
+      errorMessage
+    );
     const isTimeoutError = /timeout|etimedout/.test(errorMessage);
-    const isAuthError = /auth|unauthorized|forbidden|permission|access denied|invalid.*token|expired.*token/.test(errorMessage);
+    const isAuthError =
+      /auth|unauthorized|forbidden|permission|access denied|invalid.*token|expired.*token/.test(
+        errorMessage
+      );
     const isValidationError = /validation|invalid|malformed|bad request|schema/.test(errorMessage);
-    const isConfigurationError = /config|configuration|setup|initialization|missing.*key|invalid.*setting/.test(errorMessage);
-    
+    const isConfigurationError =
+      /config|configuration|setup|initialization|missing.*key|invalid.*setting/.test(errorMessage);
+
     return {
       isNetworkError,
       isTimeoutError,
       isAuthError,
       isValidationError,
       isConfigurationError,
-      originalError: error
+      originalError: error,
     };
   }
 
@@ -419,9 +416,9 @@ export class McpErrorWrapper {
       isAuthError: false,
       isValidationError: false,
       isConfigurationError: false,
-      originalError: error
+      originalError: error,
     };
-    
+
     switch (errorType) {
       case 'NetworkError':
         classification.isNetworkError = true;
@@ -440,7 +437,7 @@ export class McpErrorWrapper {
         classification.isConfigurationError = true;
         break;
     }
-    
+
     return classification;
   }
 
@@ -453,7 +450,7 @@ export class McpErrorWrapper {
   }
 
   private delay(ms: number): Promise<void> {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**
@@ -461,46 +458,50 @@ export class McpErrorWrapper {
    */
   private convertToTypedError(error: Error, context?: any): Error {
     // If it's already a BaseError, return as is
-    if (error instanceof ToolExecutionError || 
-        error instanceof ContentGenerationError || 
-        error instanceof ServiceUnavailableError ||
-        error instanceof NetworkError ||
-        error instanceof TimeoutError ||
-        error instanceof AuthenticationError ||
-        error instanceof AuthorizationError ||
-        error instanceof ValidationError ||
-        error instanceof ConfigurationError) {
+    if (
+      error instanceof ToolExecutionError ||
+      error instanceof ContentGenerationError ||
+      error instanceof ServiceUnavailableError ||
+      error instanceof NetworkError ||
+      error instanceof TimeoutError ||
+      error instanceof AuthenticationError ||
+      error instanceof AuthorizationError ||
+      error instanceof ValidationError ||
+      error instanceof ConfigurationError
+    ) {
       return error;
     }
 
     const classification = this.classifyError(error);
-    
+
     if (classification.isNetworkError) {
       return new NetworkError(error.message, context, error);
     }
-    
+
     if (classification.isTimeoutError) {
       return new TimeoutError(error.message, context, error);
     }
-    
+
     if (classification.isAuthError) {
       // Determine if it's authentication or authorization based on message
-      if (error.message.toLowerCase().includes('unauthorized') || 
-          error.message.toLowerCase().includes('invalid') ||
-          error.message.toLowerCase().includes('expired')) {
+      if (
+        error.message.toLowerCase().includes('unauthorized') ||
+        error.message.toLowerCase().includes('invalid') ||
+        error.message.toLowerCase().includes('expired')
+      ) {
         return new AuthenticationError(error.message, context, error);
       }
       return new AuthorizationError(error.message, context, error);
     }
-    
+
     if (classification.isValidationError) {
       return new ValidationError(error.message, context, error);
     }
-    
+
     if (classification.isConfigurationError) {
       return new ConfigurationError(error.message, context, error);
     }
-    
+
     // Return the original error if no specific type matches
     return error;
   }
@@ -508,8 +509,8 @@ export class McpErrorWrapper {
 
 // Helper functions for easy usage
 export function createMcpErrorWrapper(
-  errorHandler: ErrorHandler, 
-  logger: Logger, 
+  errorHandler: ErrorHandler,
+  logger: Logger,
   config?: Partial<McpErrorConfig>
 ): McpErrorWrapper {
   return new McpErrorWrapper(errorHandler, logger, config);
@@ -532,14 +533,12 @@ function createErrorHandlingDecorator(
         userId: (this as any).userId,
       };
 
-      const wrapMethod = type === 'tool' 
-        ? errorWrapper.wrapToolExecution.bind(errorWrapper)
-        : errorWrapper.wrapPromptExecution.bind(errorWrapper);
+      const wrapMethod =
+        type === 'tool'
+          ? errorWrapper.wrapToolExecution.bind(errorWrapper)
+          : errorWrapper.wrapPromptExecution.bind(errorWrapper);
 
-      return wrapMethod(
-        () => originalMethod.apply(this, args),
-        context as any
-      );
+      return wrapMethod(() => originalMethod.apply(this, args), context as any);
     };
 
     return descriptor;

@@ -44,7 +44,11 @@
       "mcp__task-master-ai__validate_dependencies",
       "Bash(npx tsc:*)",
       "Bash(git checkout:*)",
-      "Bash(npm run dev:*)"
+      "Bash(npm run dev:*)",
+      "mcp__task-master-ai__analyze_project_complexity",
+      "mcp__task-master-ai__research",
+      "Bash(chmod:*)",
+      "Bash(docker build:*)"
     ],
     "deny": []
   },

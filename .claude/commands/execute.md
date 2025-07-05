@@ -67,6 +67,7 @@ This command implements **EXACTLY ONE** task or subtask at a time and **NEVER** 
 
 ### Phase 3: Implementation (ONLY AFTER EXPLICIT USER APPROVAL)
 1. **CRITICAL: Check Git Status**: Use Bash tool to check current git status and ensure on master/main
+2. **Create Feature Branch**: Create a new feature branch for this task using git checkout -b feature/task-{id}
 3. **Update TaskMaster**: 
    - Set ONLY the specific task/subtask status to "in_progress" using mcp__taskmaster-ai__set_task_status
    - Add implementation notes using mcp__taskmaster-ai__update_task or mcp__taskmaster-ai__update_subtask

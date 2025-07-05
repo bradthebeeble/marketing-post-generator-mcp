@@ -39,10 +39,7 @@ export class SampleTool {
   private readonly logger: winston.Logger;
   private readonly searchService: SearchService;
 
-  constructor(
-    searchService: SearchService,
-    logger?: winston.Logger
-  ) {
+  constructor(searchService: SearchService, logger?: winston.Logger) {
     this.logger = logger || createLogger({ level: 'info', format: 'simple' });
     this.searchService = searchService;
   }

@@ -51,15 +51,19 @@ export const DEFAULT_CONFIG: ServerConfig = {
   },
   search: {
     defaultAdapter: process.env.SEARCH_DEFAULT_ADAPTER || 'web-scraping',
-    fallbackAdapters: process.env.SEARCH_FALLBACK_ADAPTERS ? process.env.SEARCH_FALLBACK_ADAPTERS.split(',') : [],
+    fallbackAdapters: process.env.SEARCH_FALLBACK_ADAPTERS
+      ? process.env.SEARCH_FALLBACK_ADAPTERS.split(',')
+      : [],
     adapterConfigs: {
       'web-scraping': {
         sampleSize: parseInt(process.env.SEARCH_WEB_SAMPLE_SIZE || '5', 10),
         maxRequestsPerSecond: parseInt(process.env.SEARCH_WEB_RATE_LIMIT || '2', 10),
         timeout: parseInt(process.env.SEARCH_WEB_TIMEOUT || '30000', 10),
-        userAgent: process.env.SEARCH_WEB_USER_AGENT || 'Mozilla/5.0 (compatible; MarketingPostGenerator/1.0)',
+        userAgent:
+          process.env.SEARCH_WEB_USER_AGENT ||
+          'Mozilla/5.0 (compatible; MarketingPostGenerator/1.0)',
       },
-      'firecrawl': {
+      firecrawl: {
         apiKey: process.env.FIRECRAWL_API_KEY || '',
         baseUrl: process.env.FIRECRAWL_BASE_URL || 'https://api.firecrawl.dev',
         rateLimit: parseInt(process.env.FIRECRAWL_RATE_LIMIT || '30', 10),
@@ -77,8 +81,9 @@ export const DEFAULT_CONFIG: ServerConfig = {
     enableErrorReporting: parseBoolean(process.env.ERROR_REPORTING_ENABLED, true),
     enableStackTrace: parseBoolean(process.env.ERROR_STACK_TRACE_ENABLED, true),
     maxRecentErrors: parseInt(process.env.ERROR_MAX_RECENT || '100', 10),
-    excludeStackTraceForCodes: process.env.ERROR_EXCLUDE_STACK_CODES ? 
-      process.env.ERROR_EXCLUDE_STACK_CODES.split(',') : ['VALIDATION_ERROR', 'RATE_LIMIT_ERROR'],
+    excludeStackTraceForCodes: process.env.ERROR_EXCLUDE_STACK_CODES
+      ? process.env.ERROR_EXCLUDE_STACK_CODES.split(',')
+      : ['VALIDATION_ERROR', 'RATE_LIMIT_ERROR'],
     notificationEnabled: parseBoolean(process.env.ERROR_NOTIFICATION_ENABLED, false),
   },
   rateLimit: {
@@ -226,7 +231,7 @@ export function validateConfig(config: ServerConfig): void {
     }
     if (
       config.errorHandling.excludeStackTraceForCodes &&
-      config.errorHandling.excludeStackTraceForCodes.some(code => typeof code !== 'string')
+      config.errorHandling.excludeStackTraceForCodes.some((code) => typeof code !== 'string')
     ) {
       throw new Error('Error handling excludeStackTraceForCodes must be an array of strings');
     }
@@ -247,7 +252,9 @@ export function validateConfig(config: ServerConfig): void {
       config.rateLimit.defaultWindowMs !== undefined &&
       (config.rateLimit.defaultWindowMs < 1000 || config.rateLimit.defaultWindowMs > 3600000)
     ) {
-      throw new Error('Rate limit defaultWindowMs must be between 1000ms (1 second) and 3600000ms (1 hour)');
+      throw new Error(
+        'Rate limit defaultWindowMs must be between 1000ms (1 second) and 3600000ms (1 hour)'
+      );
     }
     if (
       config.rateLimit.defaultMaxRequests !== undefined &&

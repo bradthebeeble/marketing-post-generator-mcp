@@ -51,23 +51,25 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
     try {
       this.client = new FirecrawlApp({
         apiKey: this.config.apiKey,
-        ...(this.config.baseUrl && { apiUrl: this.config.baseUrl })
+        ...(this.config.baseUrl && { apiUrl: this.config.baseUrl }),
       });
 
       this.initialized = true;
       this.logger.info('FirecrawlSearchAdapter initialized', {
         baseUrl: this.config.baseUrl,
         rateLimit: this.config.rateLimit,
-        maxRetries: this.config.maxRetries
+        maxRetries: this.config.maxRetries,
       });
 
       // Reset daily credits if it's a new day
       this.checkDailyCreditReset();
     } catch (error) {
       this.logger.error('Failed to initialize Firecrawl adapter', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Firecrawl adapter initialization failed: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Firecrawl adapter initialization failed: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -81,16 +83,16 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       await this.executeWithRetry(async () => {
         const result = await this.client.scrapeUrl('https://docs.firecrawl.dev/introduction', {
           formats: ['markdown'],
-          onlyMainContent: true
+          onlyMainContent: true,
         });
         return result.success;
       });
-      
+
       this.logger.debug('Firecrawl health check passed');
       return true;
     } catch (error) {
       this.logger.debug('Firecrawl health check failed', {
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       return false;
     }
@@ -98,16 +100,16 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
 
   async fetchContent(url: string): Promise<string> {
     this.ensureInitialized();
-    
+
     try {
       this.logger.info('Fetching content via Firecrawl', { url });
-      
+
       const result = await this.executeWithRetry(async () => {
         return await this.client.scrapeUrl(url, {
           formats: ['markdown'],
           onlyMainContent: true,
           includeTags: ['title', 'meta'],
-          excludeTags: ['nav', 'footer', 'header', 'aside', 'script', 'style']
+          excludeTags: ['nav', 'footer', 'header', 'aside', 'script', 'style'],
         });
       });
 
@@ -118,19 +120,21 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       // Track credit usage - hardcoded to 1 since scrapeUrl API doesn't return actual credit usage
       // This is a conservative estimate as single URL scraping typically consumes 1 credit
       this.trackCreditUsage(1, true);
-      
+
       this.logger.info('Content fetched successfully via Firecrawl', {
         url,
-        contentLength: result.markdown.length
+        contentLength: result.markdown.length,
       });
 
       return result.markdown;
     } catch (error) {
       this.logger.error('Error fetching content from Firecrawl', {
         url,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to fetch content: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to fetch content: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
@@ -141,7 +145,7 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       this.logger.info('Sampling domain via Firecrawl', { domain, count });
 
       const baseUrl = domain.startsWith('http') ? domain : `https://${domain}`;
-      
+
       // Use Firecrawl's crawl functionality to discover blog posts
       const crawlResult = await this.executeWithRetry(async () => {
         return await this.client.crawlUrl(baseUrl, {
@@ -150,11 +154,11 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
             formats: ['markdown'],
             onlyMainContent: true,
             includeTags: ['title', 'meta'],
-            excludeTags: ['nav', 'footer', 'header', 'aside', 'script', 'style']
+            excludeTags: ['nav', 'footer', 'header', 'aside', 'script', 'style'],
           },
           allowBackwardLinks: false,
           allowExternalLinks: false,
-          maxDepth: 2
+          maxDepth: 2,
         });
       });
 
@@ -174,13 +178,13 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
         this.trackCreditUsage(selectedPosts.length, true);
       }
 
-      const results: DomainSampleResult[] = selectedPosts.map(post => ({
+      const results: DomainSampleResult[] = selectedPosts.map((post) => ({
         url: post.metadata?.sourceURL || post.url || '',
         content: post.markdown || '',
         title: post.metadata?.title,
         publishedDate: post.metadata?.publishedTime || post.metadata?.modifiedTime,
         author: post.metadata?.author,
-        excerpt: post.metadata?.description
+        excerpt: post.metadata?.description,
       }));
 
       this.logger.info('Domain sampling completed via Firecrawl', {
@@ -188,22 +192,24 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
         requested: count,
         crawled: crawlResult.data.length,
         filtered: blogPosts.length,
-        selected: results.length
+        selected: results.length,
       });
 
       return results;
     } catch (error) {
       this.logger.error('Error sampling domain with Firecrawl', {
         domain,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
-      throw new Error(`Failed to sample domain: ${error instanceof Error ? error.message : String(error)}`);
+      throw new Error(
+        `Failed to sample domain: ${error instanceof Error ? error.message : String(error)}`
+      );
     }
   }
 
   async search(query: string, options?: SearchOptions): Promise<SearchResult[]> {
     this.ensureInitialized();
-    
+
     try {
       this.logger.info('Searching via Firecrawl', { query, options });
 
@@ -211,7 +217,7 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       const searchResult = await this.executeWithRetry(async () => {
         return await this.client.search(query, {
           limit: options?.limit || 10,
-          ...(options?.filters && { scrapeOptions: { ...options.filters } })
+          ...(options?.filters && { scrapeOptions: { ...options.filters } }),
         });
       });
 
@@ -228,19 +234,19 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
         url: item.url || item.metadata?.sourceURL || '',
         title: item.metadata?.title || '',
         snippet: item.metadata?.description || '',
-        ...(item.markdown && { content: item.markdown })
+        ...(item.markdown && { content: item.markdown }),
       }));
 
       this.logger.info('Search completed via Firecrawl', {
         query,
-        resultCount: results.length
+        resultCount: results.length,
       });
 
       return results;
     } catch (error) {
       this.logger.error('Error searching with Firecrawl', {
         query,
-        error: error instanceof Error ? error.message : String(error)
+        error: error instanceof Error ? error.message : String(error),
       });
       throw new Error(`Search failed: ${error instanceof Error ? error.message : String(error)}`);
     }
@@ -254,35 +260,35 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
 
   private async executeWithRetry<T>(apiCall: () => Promise<T>): Promise<T> {
     let attempts = 0;
-    
+
     while (attempts < this.config.maxRetries) {
       try {
         // Enforce rate limiting
         await this.enforceRateLimit();
-        
+
         // Check daily credit limit
         this.checkCreditLimit();
-        
+
         // Execute the API call
         const result = await apiCall();
         return result;
       } catch (error) {
         attempts++;
-        
+
         if (this.isRetryableError(error) && attempts < this.config.maxRetries) {
           const delay = this.calculateBackoff(attempts);
           this.logger.warn('Retrying Firecrawl API call', {
             attempts,
             delay,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           });
-          await new Promise(resolve => setTimeout(resolve, delay));
+          await new Promise((resolve) => setTimeout(resolve, delay));
         } else {
           throw error;
         }
       }
     }
-    
+
     throw new Error(`Failed after ${this.config.maxRetries} attempts`);
   }
 
@@ -290,11 +296,13 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
     // Determine if error is retryable (rate limits, temporary server issues)
     if (error instanceof Error) {
       const message = error.message.toLowerCase();
-      return message.includes('rate limit') || 
-             message.includes('timeout') || 
-             message.includes('502') || 
-             message.includes('503') || 
-             message.includes('504');
+      return (
+        message.includes('rate limit') ||
+        message.includes('timeout') ||
+        message.includes('502') ||
+        message.includes('503') ||
+        message.includes('504')
+      );
     }
     return false;
   }
@@ -307,12 +315,12 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
   private async enforceRateLimit(): Promise<void> {
     const now = Date.now();
     const minInterval = (60 * 1000) / this.config.rateLimit;
-    
+
     if (now - this.lastRequestTime < minInterval) {
       const delay = minInterval - (now - this.lastRequestTime);
-      await new Promise(resolve => setTimeout(resolve, delay));
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
-    
+
     this.lastRequestTime = Date.now();
   }
 
@@ -325,29 +333,29 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
   private trackCreditUsage(credits: number, isEstimated: boolean = false): void {
     // Check if we need to reset daily credit counter
     this.checkDailyCreditReset();
-    
+
     this.dailyCreditsUsed += credits;
-    
+
     this.logger.debug('Firecrawl API usage tracked', {
       credits,
       isEstimated,
       dailyUsage: this.dailyCreditsUsed,
-      dailyLimit: this.config.maxCreditsPerDay
+      dailyLimit: this.config.maxCreditsPerDay,
     });
-    
+
     // Warn about estimation inaccuracy if using fallback tracking
     if (isEstimated) {
       this.logger.debug('Credit usage is estimated - actual usage may differ', {
-        estimatedCredits: credits
+        estimatedCredits: credits,
       });
     }
-    
+
     // Warn when approaching limit
     if (this.dailyCreditsUsed > this.config.maxCreditsPerDay * 0.8) {
       this.logger.warn('Firecrawl credit usage approaching daily limit', {
         used: this.dailyCreditsUsed,
         limit: this.config.maxCreditsPerDay,
-        hasEstimatedUsage: isEstimated
+        hasEstimatedUsage: isEstimated,
       });
     }
   }
@@ -362,17 +370,19 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
   }
 
   private filterBlogPosts(crawlData: any[], baseUrl: string): any[] {
-    return crawlData.filter(item => {
+    return crawlData.filter((item) => {
       const url = item.metadata?.sourceURL || item.url || '';
       const title = item.metadata?.title || '';
       const content = item.markdown || '';
-      
+
       // Basic filtering for blog-like content
-      return url &&
-             title &&
-             content.length > 200 && // Minimum content length
-             this.isValidBlogUrl(url, baseUrl) &&
-             !this.isExcludedContent(title.toLowerCase(), content.toLowerCase());
+      return (
+        url &&
+        title &&
+        content.length > 200 && // Minimum content length
+        this.isValidBlogUrl(url, baseUrl) &&
+        !this.isExcludedContent(title.toLowerCase(), content.toLowerCase())
+      );
     });
   }
 
@@ -380,23 +390,49 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
     try {
       const urlObj = new URL(url);
       const baseUrlObj = new URL(baseUrl);
-      
+
       // Must be from the same domain
       if (urlObj.hostname !== baseUrlObj.hostname) {
         return false;
       }
-      
+
       const path = urlObj.pathname.toLowerCase();
-      
+
       // Exclude common non-content URLs
       const excludePatterns = [
-        '/tag/', '/category/', '/author/', '/search/', '/feed/', '/rss/', '/api/',
-        '/admin/', '/wp-admin/', '/login/', '/register/', '/contact/', '/about/',
-        '/privacy/', '/terms/', '.css', '.js', '.jpg', '.jpeg', '.png', '.gif',
-        '.svg', '.ico', '.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar'
+        '/tag/',
+        '/category/',
+        '/author/',
+        '/search/',
+        '/feed/',
+        '/rss/',
+        '/api/',
+        '/admin/',
+        '/wp-admin/',
+        '/login/',
+        '/register/',
+        '/contact/',
+        '/about/',
+        '/privacy/',
+        '/terms/',
+        '.css',
+        '.js',
+        '.jpg',
+        '.jpeg',
+        '.png',
+        '.gif',
+        '.svg',
+        '.ico',
+        '.pdf',
+        '.doc',
+        '.docx',
+        '.xls',
+        '.xlsx',
+        '.zip',
+        '.rar',
       ];
-      
-      return !excludePatterns.some(pattern => path.includes(pattern));
+
+      return !excludePatterns.some((pattern) => path.includes(pattern));
     } catch (error) {
       return false;
     }
@@ -404,13 +440,18 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
 
   private isExcludedContent(title: string, content: string): boolean {
     const excludeKeywords = [
-      'cookie policy', 'privacy policy', 'terms of service', 'sitemap',
-      '404', 'not found', 'page not found', 'error', 'under construction'
+      'cookie policy',
+      'privacy policy',
+      'terms of service',
+      'sitemap',
+      '404',
+      'not found',
+      'page not found',
+      'error',
+      'under construction',
     ];
-    
-    return excludeKeywords.some(keyword => 
-      title.includes(keyword) || content.includes(keyword)
-    );
+
+    return excludeKeywords.some((keyword) => title.includes(keyword) || content.includes(keyword));
   }
 
   private selectRepresentativeSample(posts: any[], count: number): any[] {
@@ -420,40 +461,40 @@ export class FirecrawlSearchAdapter implements ISearchAdapter {
       // Safe date parsing with validation
       const aDateStr = a.metadata?.publishedTime || a.metadata?.modifiedTime;
       const bDateStr = b.metadata?.publishedTime || b.metadata?.modifiedTime;
-      
+
       let aDate = new Date('1970-01-01');
       let bDate = new Date('1970-01-01');
-      
+
       if (aDateStr) {
         const parsedA = new Date(aDateStr);
         if (!isNaN(parsedA.getTime())) {
           aDate = parsedA;
         }
       }
-      
+
       if (bDateStr) {
         const parsedB = new Date(bDateStr);
         if (!isNaN(parsedB.getTime())) {
           bDate = parsedB;
         }
       }
-      
+
       // Normalize scores to avoid scale mismatch
       // Date score: days since epoch (reasonable scale 0-20000)
       const aDays = Math.floor(aDate.getTime() / (1000 * 60 * 60 * 24));
       const bDays = Math.floor(bDate.getTime() / (1000 * 60 * 60 * 24));
-      
+
       // Content length score: length in thousands of characters (reasonable scale 0-50)
       const aContentScore = (a.markdown?.length || 0) / 1000;
       const bContentScore = (b.markdown?.length || 0) / 1000;
-      
+
       // Combined score with balanced weighting
       const aScore = aDays + aContentScore;
       const bScore = bDays + bContentScore;
-      
+
       return bScore - aScore;
     });
-    
+
     return sortedPosts.slice(0, count);
   }
 }

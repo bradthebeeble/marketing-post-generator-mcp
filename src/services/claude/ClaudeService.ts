@@ -271,9 +271,7 @@ export class ClaudeService implements IClaudeService {
 
     if (this.rateLimiter.tokens.count >= maxTokens) {
       const waitTime = this.rateLimiter.tokens.resetTime - now;
-      throw new Error(
-        `Token quota exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`
-      );
+      throw new Error(`Token quota exceeded. Please wait ${Math.ceil(waitTime / 1000)} seconds.`);
     }
   }
 

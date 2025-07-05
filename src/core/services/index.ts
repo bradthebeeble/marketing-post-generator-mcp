@@ -18,7 +18,7 @@ export function registerErrorHandlingServices(container: DIContainer, config: Se
   // Register logger
   container.register(
     SERVICE_TOKENS.LOGGER,
-    () => createLogger('MCP-Server'),
+    () => createLogger({ level: config.logging.level, format: config.logging.format }),
     true
   );
 
@@ -43,7 +43,9 @@ export function registerErrorHandlingServices(container: DIContainer, config: Se
   container.register(
     SERVICE_TOKENS.MCP_ERROR_WRAPPER,
     () => {
-      const errorHandlingService = container.resolve<ErrorHandlingService>(SERVICE_TOKENS.ERROR_HANDLING_SERVICE);
+      const errorHandlingService = container.resolve<ErrorHandlingService>(
+        SERVICE_TOKENS.ERROR_HANDLING_SERVICE
+      );
       const logger = container.resolve<ReturnType<typeof createLogger>>(SERVICE_TOKENS.LOGGER);
       return createMcpErrorWrapper(errorHandlingService.getErrorHandler(), logger);
     },

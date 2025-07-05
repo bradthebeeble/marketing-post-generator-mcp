@@ -9,7 +9,7 @@ export interface RequestIdConfig {
 }
 
 export class RequestIdMiddleware {
-  private config: RequestIdConfig;
+  private readonly config: RequestIdConfig;
 
   constructor(config: RequestIdConfig = {}) {
     this.config = {
@@ -25,7 +25,7 @@ export class RequestIdMiddleware {
     return (req: Request, res: Response, next: NextFunction) => {
       // Get request ID from header or generate new one
       let requestId = req.get(this.config.headerName!);
-      
+
       if (!requestId) {
         requestId = this.config.generateId!();
       }

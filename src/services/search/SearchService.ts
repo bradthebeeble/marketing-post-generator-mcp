@@ -10,7 +10,7 @@ import winston from 'winston';
 export class SearchService {
   private readonly logger: winston.Logger;
   private adapter: ISearchAdapter;
-  private fallbackAdapters: ISearchAdapter[] = [];
+  private readonly fallbackAdapters: ISearchAdapter[] = [];
 
   constructor(
     primaryAdapter: ISearchAdapter,
@@ -20,11 +20,11 @@ export class SearchService {
     this.logger = logger || createLogger({ level: 'info', format: 'simple' });
     this.adapter = primaryAdapter;
     this.fallbackAdapters = fallbacks;
-    
+
     this.logger.info('SearchService initialized', {
       primaryAdapter: primaryAdapter.getName(),
       fallbackCount: fallbacks.length,
-      fallbackAdapters: fallbacks.map(adapter => adapter.getName())
+      fallbackAdapters: fallbacks.map((adapter) => adapter.getName()),
     });
   }
 
@@ -37,7 +37,7 @@ export class SearchService {
     this.adapter = adapter;
     this.logger.info('Primary search adapter changed', {
       from: previousName,
-      to: adapter.getName()
+      to: adapter.getName(),
     });
   }
 
@@ -49,7 +49,7 @@ export class SearchService {
     this.fallbackAdapters.push(adapter);
     this.logger.info('Fallback adapter added', {
       adapter: adapter.getName(),
-      totalFallbacks: this.fallbackAdapters.length
+      totalFallbacks: this.fallbackAdapters.length,
     });
   }
 
@@ -66,7 +66,7 @@ export class SearchService {
    * @returns Array of fallback adapter names
    */
   public getFallbackAdapterNames(): string[] {
-    return this.fallbackAdapters.map(adapter => adapter.getName());
+    return this.fallbackAdapters.map((adapter) => adapter.getName());
   }
 
   /**
@@ -85,7 +85,7 @@ export class SearchService {
         url,
         adapter: this.adapter.getName(),
         duration,
-        contentLength: content.length
+        contentLength: content.length,
       });
       return content;
     } catch (error) {
@@ -93,7 +93,7 @@ export class SearchService {
         url,
         primaryAdapter: this.adapter.getName(),
         error: error instanceof Error ? error.message : String(error),
-        fallbacksAvailable: this.fallbackAdapters.length
+        fallbacksAvailable: this.fallbackAdapters.length,
       });
 
       // Try fallback adapters
@@ -101,25 +101,25 @@ export class SearchService {
         try {
           this.logger.debug('Trying fallback adapter', {
             url,
-            adapter: fallbackAdapter.getName()
+            adapter: fallbackAdapter.getName(),
           });
-          
+
           const content = await fallbackAdapter.fetchContent(url);
           const duration = Date.now() - startTime;
-          
+
           this.logger.info('Content fetched with fallback adapter', {
             url,
             adapter: fallbackAdapter.getName(),
             duration,
-            contentLength: content.length
+            contentLength: content.length,
           });
-          
+
           return content;
         } catch (fallbackError) {
           this.logger.debug('Fallback adapter failed', {
             url,
             adapter: fallbackAdapter.getName(),
-            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           });
         }
       }
@@ -128,11 +128,11 @@ export class SearchService {
       this.logger.error('All adapters failed to fetch content', {
         url,
         duration,
-        adaptersAttempted: 1 + this.fallbackAdapters.length
+        adaptersAttempted: 1 + this.fallbackAdapters.length,
       });
 
       throw new Error(
-        `Failed to fetch content from ${url} with all adapters. Primary: ${this.adapter.getName()}, Fallbacks: ${this.fallbackAdapters.map(a => a.getName()).join(', ')}`
+        `Failed to fetch content from ${url} with all adapters. Primary: ${this.adapter.getName()}, Fallbacks: ${this.fallbackAdapters.map((a) => a.getName()).join(', ')}`
       );
     }
   }
@@ -148,28 +148,28 @@ export class SearchService {
     this.logger.info('Sampling domain', {
       domain,
       count,
-      primaryAdapter: this.adapter.getName()
+      primaryAdapter: this.adapter.getName(),
     });
 
     try {
       const samples = await this.adapter.sampleDomain(domain, count);
       const duration = Date.now() - startTime;
-      
+
       this.logger.info('Domain sampled successfully', {
         domain,
         adapter: this.adapter.getName(),
         requestedCount: count,
         actualCount: samples.length,
-        duration
+        duration,
       });
-      
+
       return samples;
     } catch (error) {
       this.logger.warn('Primary adapter failed, trying fallbacks', {
         domain,
         primaryAdapter: this.adapter.getName(),
         error: error instanceof Error ? error.message : String(error),
-        fallbacksAvailable: this.fallbackAdapters.length
+        fallbacksAvailable: this.fallbackAdapters.length,
       });
 
       // Try fallback adapters
@@ -177,26 +177,26 @@ export class SearchService {
         try {
           this.logger.debug('Trying fallback adapter', {
             domain,
-            adapter: fallbackAdapter.getName()
+            adapter: fallbackAdapter.getName(),
           });
-          
+
           const samples = await fallbackAdapter.sampleDomain(domain, count);
           const duration = Date.now() - startTime;
-          
+
           this.logger.info('Domain sampled with fallback adapter', {
             domain,
             adapter: fallbackAdapter.getName(),
             requestedCount: count,
             actualCount: samples.length,
-            duration
+            duration,
           });
-          
+
           return samples;
         } catch (fallbackError) {
           this.logger.debug('Fallback adapter failed', {
             domain,
             adapter: fallbackAdapter.getName(),
-            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           });
         }
       }
@@ -205,11 +205,11 @@ export class SearchService {
       this.logger.error('All adapters failed to sample domain', {
         domain,
         duration,
-        adaptersAttempted: 1 + this.fallbackAdapters.length
+        adaptersAttempted: 1 + this.fallbackAdapters.length,
       });
 
       throw new Error(
-        `Failed to sample domain ${domain} with all adapters. Primary: ${this.adapter.getName()}, Fallbacks: ${this.fallbackAdapters.map(a => a.getName()).join(', ')}`
+        `Failed to sample domain ${domain} with all adapters. Primary: ${this.adapter.getName()}, Fallbacks: ${this.fallbackAdapters.map((a) => a.getName()).join(', ')}`
       );
     }
   }
@@ -225,27 +225,27 @@ export class SearchService {
     this.logger.info('Performing search', {
       query,
       options,
-      primaryAdapter: this.adapter.getName()
+      primaryAdapter: this.adapter.getName(),
     });
 
     try {
       const results = await this.adapter.search(query, options);
       const duration = Date.now() - startTime;
-      
+
       this.logger.info('Search completed successfully', {
         query,
         adapter: this.adapter.getName(),
         resultCount: results.length,
-        duration
+        duration,
       });
-      
+
       return results;
     } catch (error) {
       this.logger.warn('Primary adapter failed, trying fallbacks', {
         query,
         primaryAdapter: this.adapter.getName(),
         error: error instanceof Error ? error.message : String(error),
-        fallbacksAvailable: this.fallbackAdapters.length
+        fallbacksAvailable: this.fallbackAdapters.length,
       });
 
       // Try fallback adapters
@@ -253,25 +253,25 @@ export class SearchService {
         try {
           this.logger.debug('Trying fallback adapter', {
             query,
-            adapter: fallbackAdapter.getName()
+            adapter: fallbackAdapter.getName(),
           });
-          
+
           const results = await fallbackAdapter.search(query, options);
           const duration = Date.now() - startTime;
-          
+
           this.logger.info('Search completed with fallback adapter', {
             query,
             adapter: fallbackAdapter.getName(),
             resultCount: results.length,
-            duration
+            duration,
           });
-          
+
           return results;
         } catch (fallbackError) {
           this.logger.debug('Fallback adapter failed', {
             query,
             adapter: fallbackAdapter.getName(),
-            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError)
+            error: fallbackError instanceof Error ? fallbackError.message : String(fallbackError),
           });
         }
       }
@@ -280,11 +280,11 @@ export class SearchService {
       this.logger.error('All adapters failed to perform search', {
         query,
         duration,
-        adaptersAttempted: 1 + this.fallbackAdapters.length
+        adaptersAttempted: 1 + this.fallbackAdapters.length,
       });
 
       throw new Error(
-        `Failed to search for "${query}" with all adapters. Primary: ${this.adapter.getName()}, Fallbacks: ${this.fallbackAdapters.map(a => a.getName()).join(', ')}`
+        `Failed to search for "${query}" with all adapters. Primary: ${this.adapter.getName()}, Fallbacks: ${this.fallbackAdapters.map((a) => a.getName()).join(', ')}`
       );
     }
   }
@@ -310,7 +310,7 @@ export class SearchService {
 
     // Check fallback adapters
     const fallbackResults = await Promise.allSettled(
-      this.fallbackAdapters.map(async adapter => {
+      this.fallbackAdapters.map(async (adapter) => {
         try {
           const healthy = await adapter.healthCheck();
           return { name: adapter.getName(), healthy };
@@ -318,23 +318,25 @@ export class SearchService {
           return {
             name: adapter.getName(),
             healthy: false,
-            error: error instanceof Error ? error.message : String(error)
+            error: error instanceof Error ? error.message : String(error),
           };
         }
       })
     );
 
-    const fallbacks = fallbackResults.map(result =>
-      result.status === 'fulfilled' ? result.value : { name: 'unknown', healthy: false, error: 'Promise rejected' }
+    const fallbacks = fallbackResults.map((result) =>
+      result.status === 'fulfilled'
+        ? result.value
+        : { name: 'unknown', healthy: false, error: 'Promise rejected' }
     );
 
     const healthStatus = {
       primary: {
         name: this.adapter.getName(),
         healthy: primaryHealthy,
-        ...(primaryError && { error: primaryError })
+        ...(primaryError && { error: primaryError }),
       },
-      fallbacks
+      fallbacks,
     };
 
     this.logger.debug('Health check completed', healthStatus);

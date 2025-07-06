@@ -399,17 +399,18 @@ version: 2.0
   </examples>
 
   <project_configuration>
-    <project_root>/Users/iatzmon/dev/task-master-ui</project_root>
-    <project_type>TaskMaster UI system for visual task management</project_type>
+    <project_root>/Users/asafatzmon/dev/marketing-post-generator-mcp</project_root>
+    <project_type>Marketing Post Generator MCP server for automated content creation</project_type>
     <technology_stack>
-      <primary>Next.js 15, TypeScript, React</primary>
-      <styling>TailwindCSS</styling>
-      <integration>TaskMaster AI MCP</integration>
+      <primary>Node.js, TypeScript, Express</primary>
+      <containerization>Docker</containerization>
+      <integration>Model Context Protocol (MCP)</integration>
     </technology_stack>
     <development_patterns>
-      <src_directory>Use src/ directory structure</src_directory>
-      <component_structure>Follow existing component patterns</component_structure>
-      <type_safety>Maintain strict TypeScript compliance</type_safety>
+      <src_directory>src/</src_directory>
+      <api_structure>MCP protocol endpoints</api_structure>
+      <type_safety>Strict TypeScript with tsconfig.json</type_safety>
+      <docker>Dockerfile and docker-compose.yml</docker>
     </development_patterns>
   </project_configuration>
 </command>

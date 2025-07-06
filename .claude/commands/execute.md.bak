@@ -219,8 +219,6 @@ Determine thinking level based on task characteristics:
 
 ## Project-Specific Context
 
-- **Project Root**: /Users/asafatzmon/dev/book-borrow
-- **TaskMaster Tasks**: Book borrowing/lending system with 20 main tasks
-- **Current Status**: Task #1 (Setup) completed, Task #2 (Prisma) pending
-- **Next Priority**: Authentication system (Task #3) with 5 subtasks
-- **Technology Stack**: Next.js, TypeScript, TailwindCSS, Auth.js v5, Prisma, Docker
+- **Project Root**: /Users/asafatzmon/dev/marketing-post-generator-mcp
+- **TaskMaster Tasks**: Marketing Post Generator MCP server with content creation tasks
+- **Technology Stack**: Node.js, TypeScript, Express, Docker, MCP Protocol

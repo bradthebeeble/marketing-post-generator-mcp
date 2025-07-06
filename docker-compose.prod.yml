@@ -41,6 +41,7 @@ services:
     security_opt:
       - no-new-privileges:true
     read_only: true
+    user: "1001:1001"  # match non-root user created in Dockerfile
     tmpfs:
       - /tmp:size=100M,noexec,nosuid,nodev
     logging:

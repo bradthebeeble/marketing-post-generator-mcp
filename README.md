@@ -1,10 +1,77 @@
-# Marketing Post Generator MCP
+# Marketing Post Generator MCP Server
 
 [![npm version](https://badge.fury.io/js/marketing-post-generator-mcp.svg)](https://badge.fury.io/js/marketing-post-generator-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen.svg)](https://nodejs.org/)
 
-A powerful MCP (Model Context Protocol) server that leverages AI to automate the creation of marketing blog posts, content planning, and tone analysis. Built with TypeScript, Express, and integrated with Claude AI for intelligent content generation.
+A powerful Model Context Protocol (MCP) server that provides AI-powered content generation tools for marketing blog posts. This server integrates seamlessly with MCP clients like Claude Code to automate content creation workflows.
+
+## 🚀 Quick Start as MCP Server
+
+### Step 1: Install the Server
+
+```bash
+# Global installation (recommended for MCP clients)
+npm install -g marketing-post-generator-mcp
+
+# Or local installation
+npm install marketing-post-generator-mcp
+```
+
+### Step 2: Configure Your MCP Client
+
+Add the server to your MCP client configuration:
+
+#### Claude Code Configuration
+
+Edit your Claude Code settings file (`~/.config/claude-code/settings.json` or equivalent):
+
+```json
+{
+  "mcpServers": {
+    "marketing-post-generator": {
+      "command": "marketing-post-generator-mcp",
+      "env": {
+        "CLAUDE_API_KEY": "your_claude_api_key_here",
+        "MCP_MODE": "local"
+      }
+    }
+  }
+}
+```
+
+#### Generic MCP Client Configuration
+
+```json
+{
+  "servers": {
+    "marketing-post-generator": {
+      "command": ["marketing-post-generator-mcp"],
+      "env": {
+        "CLAUDE_API_KEY": "your_claude_api_key_here"
+      }
+    }
+  }
+}
+```
+
+### Step 3: Start Using MCP Tools
+
+Once configured, you can use the following MCP tools and prompts:
+
+```bash
+# Initialize with your blog domain
+/init domain="blog.example.com"
+
+# Sample existing content
+/sample domain="blog.example.com" sampleSize=5
+
+# Create content plan
+/content_plan domain="blog.example.com" timeframe="month" postCount=8
+
+# Generate blog posts
+/write_post title="My Blog Post" topic="AI" wordCount=1000
+```
 
 ## ✨ Features
 
@@ -14,226 +81,355 @@ A powerful MCP (Model Context Protocol) server that leverages AI to automate the
 - 📋 **Content Planning**: Create strategic content plans for future posts based on domain expertise and trends
 - 📖 **Narrative Generation**: Create detailed narratives and bullet points for upcoming posts
 - ✍️ **Blog Post Generation**: Write complete blog posts from scratch or based on narratives
+- 🔄 **MCP Protocol**: Full Model Context Protocol compliance for seamless integration
+- 🛡️ **Security**: Built-in rate limiting and error handling
 - 🐳 **Docker Support**: Containerized deployment for easy scaling
-- 🔄 **Dual Transport**: Supports both local (stdio) and remote (HTTP) modes
-- 🛡️ **Security**: Built-in CORS, DNS rebinding protection, and rate limiting
 
-## 🚀 Quick Start
+## 🛠️ MCP Server Configuration
 
-### Prerequisites
+### Environment Variables
 
-- **Node.js** 18.0.0 or higher
-- **npm** or **yarn** package manager
-- **Claude API key** from Anthropic
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `CLAUDE_API_KEY` | ✅ | - | Anthropic Claude API key |
+| `MCP_MODE` | ❌ | `local` | Server mode: `local` or `remote` |
+| `MCP_TRANSPORT` | ❌ | `stdio` | Transport: `stdio` or `http` |
+| `MCP_PORT` | ❌ | `3000` | Port for HTTP mode |
+| `FIRECRAWL_API_KEY` | ❌ | - | Enhanced web scraping |
+| `PERPLEXITY_API_KEY` | ❌ | - | Research capabilities |
+| `LOG_LEVEL` | ❌ | `info` | Logging level |
 
-### Installation
+### Advanced Configuration
 
-#### Option 1: Install from npm (when published)
-
-```bash
-npm install -g marketing-post-generator-mcp
+```json
+{
+  "mcpServers": {
+    "marketing-post-generator": {
+      "command": "marketing-post-generator-mcp",
+      "env": {
+        "CLAUDE_API_KEY": "your_claude_api_key",
+        "FIRECRAWL_API_KEY": "your_firecrawl_key",
+        "PERPLEXITY_API_KEY": "your_perplexity_key",
+        "MCP_MODE": "local",
+        "LOG_LEVEL": "info",
+        "POSTGEN_DATA_DIR": ".postgen",
+        "POSTGEN_CACHE_ENABLED": "true",
+        "POSTGEN_CACHE_TTL": "3600000"
+      }
+    }
+  }
+}
 ```
 
-#### Option 2: Clone and build from source
+## 📋 Available MCP Tools
 
-```bash
-git clone https://github.com/yourusername/marketing-post-generator-mcp.git
-cd marketing-post-generator-mcp
-npm install
-npm run build
-```
-
-### Configuration
-
-1. Copy the environment template:
-```bash
-cp .env.example .env
-```
-
-2. Edit `.env` and add your API keys:
-```bash
-# Required
-CLAUDE_API_KEY="your_claude_api_key_here"
-
-# Optional (for enhanced functionality)
-FIRECRAWL_API_KEY="your_firecrawl_api_key_here"
-PERPLEXITY_API_KEY="your_perplexity_api_key_here"
-
-# MCP Configuration
-MCP_MODE=local          # or 'remote'
-MCP_PORT=3000          # for remote mode
-MCP_HOST=0.0.0.0       # for remote mode
-```
-
-### Running the Server
-
-#### Local Mode (for Claude Code integration)
-```bash
-npm run start:local
-```
-
-#### Remote Mode (HTTP server)
-```bash
-npm run start:remote
-```
-
-#### Using Docker
-```bash
-# Development
-docker-compose up --build
-
-# Production
-docker run -p 3000:3000 -e CLAUDE_API_KEY=your_key_here marketing-post-generator-mcp
-```
-
-## 📖 Usage
-
-### Initialization
-
-Before using any tools, initialize the generator with your blog domain:
-
-```
-/init domain="https://yourblog.com"
-```
-
-This creates a `.postgen` directory structure for storing generated content and analysis.
-
-### Available Tools
-
-#### 1. **sample** - Content Sampling and Analysis
-
-Analyze existing blog posts from a domain to understand positioning and tone:
-
-```
-/sample domain="yourblog.com" sampleSize=5 maxRequestsPerSecond=2
-```
+### 1. **sample** - Content Analysis
+Analyze existing blog posts from a domain to understand positioning and tone.
 
 **Parameters:**
-- `domain` (required): Domain to sample blog posts from
+- `domain` (required): Domain to analyze (e.g., "blog.stripe.com")
 - `sampleSize` (optional): Number of posts to sample (default: 5, max: 20)
 - `maxRequestsPerSecond` (optional): Rate limiting (default: 2)
 
-#### 2. **summarize** - Blog Post Summarization
-
-Generate a concise summary of a specific blog post:
-
+**Example:**
+```bash
+/sample domain="blog.stripe.com" sampleSize=5
 ```
-/summarize url="https://yourblog.com/specific-post"
-```
+
+### 2. **summarize** - Post Summarization
+Generate concise summaries of individual blog posts.
 
 **Parameters:**
 - `url` (required): URL of the blog post to summarize
 
-#### 3. **generate_tone** - Tone Analysis
-
-Analyze the tone of voice used in content:
-
+**Example:**
+```bash
+/summarize url="https://blog.stripe.com/online-payments-guide"
 ```
-/generate_tone source="yourblog.com" detailLevel="detailed"
-```
+
+### 3. **generate_tone** - Tone Analysis
+Analyze the tone of voice used in content.
 
 **Parameters:**
-- `source` (required): URL of specific post or domain name
-- `detailLevel` (optional): Analysis depth (`basic`, `detailed`, `comprehensive`)
+- `source` (required): URL or domain to analyze
+- `detailLevel` (optional): Analysis depth - "basic", "detailed", "comprehensive" (default: "detailed")
 
-#### 4. **content_plan** - Strategic Content Planning
-
-Create a comprehensive content plan for future posts:
-
+**Example:**
+```bash
+/generate_tone source="blog.stripe.com" detailLevel="comprehensive"
 ```
-/content_plan domain="yourblog.com" timeframe="month" postCount=8
-```
+
+### 4. **content_plan** - Strategic Planning
+Create comprehensive content plans for future posts.
 
 **Parameters:**
-- `domain` (required): Domain to create content plan for
-- `timeframe` (optional): Planning period (`week`, `month`, `quarter`)
+- `domain` (required): Domain to create plan for
+- `timeframe` (optional): Planning period - "week", "month", "quarter" (default: "month")
 - `postCount` (optional): Number of posts to plan (default: 8)
 - `updateExisting` (optional): Update existing plan (default: false)
 
-#### 5. **generate_narrative** - Post Narrative Creation
-
-Generate detailed outlines for upcoming posts:
-
+**Example:**
+```bash
+/content_plan domain="blog.stripe.com" timeframe="month" postCount=12
 ```
-/generate_narrative postId="post-123" style="detailed"
-```
+
+### 5. **generate_narrative** - Content Outlines
+Generate detailed narratives and outlines for posts.
 
 **Parameters:**
 - `postId` (required): ID from content plan
-- `style` (optional): Narrative style (`concise`, `detailed`, `storytelling`)
+- `style` (optional): Narrative style - "concise", "detailed", "storytelling" (default: "detailed")
 - `updateExisting` (optional): Update existing narrative (default: false)
 
-#### 6. **write_post** - Complete Blog Post Generation
-
-Write full blog posts from scratch or based on narratives:
-
+**Example:**
 ```bash
-# From narrative
-/write_post narrativeId="narrative-123" wordCount=1500
-
-# From scratch
-/write_post title="My Blog Post" topic="AI Content Generation" wordCount=1000 style="informative"
+/generate_narrative postId="post-1" style="detailed"
 ```
+
+### 6. **write_post** - Blog Post Generation
+Generate complete blog posts from scratch or narratives.
 
 **Parameters:**
-- `narrativeId` (optional): Base post on existing narrative
+- `narrativeId` (optional): Base on existing narrative
 - `title` (optional): Post title (required if no narrativeId)
 - `topic` (optional): Post topic (required if no narrativeId)
-- `keywords` (optional): Array of target keywords
+- `keywords` (optional): Target keywords array
 - `wordCount` (optional): Target word count (default: 1000)
-- `style` (optional): Writing style (`informative`, `persuasive`, `storytelling`, `technical`, `conversational`)
+- `style` (optional): Writing style - "informative", "persuasive", "storytelling", "technical", "conversational" (default: "informative")
 - `updateExisting` (optional): Update existing post (default: false)
 
-## 🔄 Complete Workflow Examples
-
-### Example 1: End-to-End Content Generation
-
+**Examples:**
 ```bash
-# 1. Initialize with your domain
-/init domain="https://techblog.com"
-
-# 2. Sample existing content to understand style
-/sample domain="techblog.com" sampleSize=5
-
-# 3. Analyze tone for consistency
-/generate_tone source="techblog.com" detailLevel="comprehensive"
-
-# 4. Create a monthly content plan
-/content_plan domain="techblog.com" timeframe="month" postCount=8
-
-# 5. Generate narrative for first post
-/generate_narrative postId="post-1" style="detailed"
-
-# 6. Write the complete blog post
+# From narrative
 /write_post narrativeId="narrative-1" wordCount=1500
+
+# From scratch
+/write_post title="Getting Started with AI" topic="artificial intelligence" keywords=["AI", "machine learning"] wordCount=1200 style="informative"
 ```
 
-### Example 2: Quick Post from Idea
+## 🎯 Available MCP Prompts
 
+### **init** - Domain Initialization
+Initialize the generator with a blog domain and set up the workspace.
+
+**Parameters:**
+- `domain` (required): Blog domain or URL (e.g., "blog.example.com" or "https://blog.example.com")
+
+**Example:**
 ```bash
-# Initialize once
-/init domain="https://yourblog.com"
-
-# Generate post directly from idea
-/write_post title="The Future of AI in Marketing" topic="AI and Marketing Automation" keywords=["AI", "marketing", "automation"] wordCount=1200 style="informative"
+/init domain="blog.stripe.com"
 ```
 
-## 📁 File Structure
+**What it does:**
+- Creates `.postgen/` directory structure
+- Validates domain accessibility
+- Sets up configuration files
+- Prepares for content analysis and generation
 
-The tool creates the following structure in your working directory:
+## 🔄 Complete MCP Workflows
+
+### End-to-End Content Creation
+```bash
+# 1. Initialize
+/init domain="yourblog.com"
+
+# 2. Analyze existing content
+/sample domain="yourblog.com" sampleSize=5
+/generate_tone source="yourblog.com" detailLevel="comprehensive"
+
+# 3. Create strategic plan
+/content_plan domain="yourblog.com" timeframe="month" postCount=8
+
+# 4. Generate content
+/generate_narrative postId="post-1" style="detailed"
+/write_post narrativeId="post-1" wordCount=1500
+```
+
+### Quick Post Generation
+```bash
+# Initialize once per domain
+/init domain="techblog.com"
+
+# Generate posts directly
+/write_post title="The Future of Web Development" topic="web development trends" keywords=["web", "development", "2024"] wordCount=1200
+```
+
+### Competitor Analysis
+```bash
+# Analyze competitor content
+/init domain="competitor-blog.com"
+/sample domain="competitor-blog.com" sampleSize=10
+/generate_tone source="competitor-blog.com" detailLevel="comprehensive"
+
+# Summarize their best posts
+/summarize url="https://competitor-blog.com/popular-post"
+```
+
+## 🏗️ MCP Server Architecture
+
+### Transport Modes
+
+#### Local Mode (stdio) - Default
+- **Use case**: Direct MCP client integration (Claude Code, etc.)
+- **Transport**: Standard input/output
+- **Configuration**: `MCP_MODE=local`
+- **Best for**: Desktop applications, CLI tools
+
+#### Remote Mode (HTTP)
+- **Use case**: Web applications, API integrations
+- **Transport**: HTTP with JSON-RPC 2.0
+- **Configuration**: `MCP_MODE=remote MCP_PORT=3000`
+- **Best for**: Web services, multiple concurrent users
+
+### Data Storage
+
+The server creates a `.postgen/` directory structure:
 
 ```
 .postgen/
-├── config.json          # Domain configuration
+├── config.json              # Domain configuration
 ├── analysis/
-│   ├── samples/          # Domain sampling results
-│   ├── tone-analysis/    # Tone analysis results
-│   └── summaries/        # Post summaries
-├── content-plans/        # Strategic content plans
-├── narratives/          # Generated post narratives
-└── posts/               # Generated blog posts
-    ├── published/       # Final posts
-    └── drafts/          # Work in progress
+│   ├── samples/              # Domain analysis results
+│   ├── tone-analysis/        # Tone analysis cache
+│   └── summaries/            # Post summaries
+├── content-plans/            # Strategic content plans
+├── narratives/              # Generated outlines
+└── posts/                   # Generated blog posts
+    ├── drafts/              # Work in progress
+    └── published/           # Final posts
+```
+
+## 🔧 MCP Client Integration Examples
+
+### Python MCP Client
+
+```python
+import json
+import subprocess
+from typing import Dict, Any
+
+class MarketingPostGeneratorMCP:
+    def __init__(self, api_key: str):
+        self.process = subprocess.Popen(
+            ['marketing-post-generator-mcp'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            env={'CLAUDE_API_KEY': api_key, 'MCP_MODE': 'local'},
+            text=True
+        )
+    
+    def call_tool(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "tools/call",
+            "params": {"name": name, "arguments": arguments}
+        }
+        
+        self.process.stdin.write(json.dumps(request) + '\n')
+        self.process.stdin.flush()
+        
+        response = self.process.stdout.readline()
+        return json.loads(response)
+    
+    def call_prompt(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        request = {
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "prompts/get",
+            "params": {"name": name, "arguments": arguments}
+        }
+        
+        self.process.stdin.write(json.dumps(request) + '\n')
+        self.process.stdin.flush()
+        
+        response = self.process.stdout.readline()
+        return json.loads(response)
+
+# Usage
+client = MarketingPostGeneratorMCP("your_api_key")
+
+# Initialize
+client.call_prompt("init", {"domain": "blog.example.com"})
+
+# Generate post
+result = client.call_tool("write_post", {
+    "title": "AI in Marketing",
+    "topic": "artificial intelligence marketing",
+    "wordCount": 1000
+})
+```
+
+### Node.js MCP Client
+
+```javascript
+import { spawn } from 'child_process';
+
+class MarketingPostGeneratorMCP {
+  constructor(apiKey) {
+    this.process = spawn('marketing-post-generator-mcp', [], {
+      stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, CLAUDE_API_KEY: apiKey, MCP_MODE: 'local' }
+    });
+    this.requestId = 1;
+  }
+
+  async callTool(name, arguments) {
+    const request = {
+      jsonrpc: '2.0',
+      id: this.requestId++,
+      method: 'tools/call',
+      params: { name, arguments }
+    };
+
+    return new Promise((resolve, reject) => {
+      this.process.stdout.once('data', (data) => {
+        try {
+          const response = JSON.parse(data.toString());
+          resolve(response.result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      this.process.stdin.write(JSON.stringify(request) + '\n');
+    });
+  }
+
+  async callPrompt(name, arguments) {
+    const request = {
+      jsonrpc: '2.0',
+      id: this.requestId++,
+      method: 'prompts/get',
+      params: { name, arguments }
+    };
+
+    return new Promise((resolve, reject) => {
+      this.process.stdout.once('data', (data) => {
+        try {
+          const response = JSON.parse(data.toString());
+          resolve(response.result);
+        } catch (error) {
+          reject(error);
+        }
+      });
+
+      this.process.stdin.write(JSON.stringify(request) + '\n');
+    });
+  }
+}
+
+// Usage
+const client = new MarketingPostGeneratorMCP('your_api_key');
+
+// Initialize and generate content
+await client.callPrompt('init', { domain: 'blog.example.com' });
+const result = await client.callTool('write_post', {
+  title: 'AI in Marketing',
+  topic: 'artificial intelligence marketing',
+  wordCount: 1000
+});
 ```
 
 ## 🛠️ Development
@@ -264,17 +460,18 @@ npm run docker:run      # Run in container
 npm run docker:dev      # Development with Docker Compose
 ```
 
-### Environment Variables
+### Running Different Modes
 
-See [.env.example](./.env.example) for complete configuration options.
+```bash
+# Local MCP mode (default)
+npm run start:local
 
-**Required:**
-- `CLAUDE_API_KEY`: Anthropic Claude API key
+# Remote HTTP mode
+npm run start:remote
 
-**Optional:**
-- `FIRECRAWL_API_KEY`: Enhanced web scraping capabilities
-- `PERPLEXITY_API_KEY`: Research-backed content generation
-- Various MCP and logging configuration options
+# Development with hot reload
+npm run dev
+```
 
 ## 🐳 Docker Deployment
 
@@ -296,14 +493,89 @@ docker run -d \
   marketing-post-generator-mcp
 ```
 
+## 🛟 Troubleshooting MCP Integration
+
+### Common Issues
+
+#### Server Not Found
+```
+Error: MCP server 'marketing-post-generator' not found
+```
+**Solutions:**
+1. Verify installation: `npm list -g marketing-post-generator-mcp`
+2. Check PATH: `which marketing-post-generator-mcp`
+3. Reinstall: `npm install -g marketing-post-generator-mcp`
+
+#### Authentication Errors
+```
+Error: Authentication failed
+```
+**Solutions:**
+1. Verify Claude API key format (starts with `sk-ant-api03-`)
+2. Check API key has sufficient credits
+3. Ensure key is properly set in environment
+
+#### JSON-RPC Errors
+```
+Error: Invalid JSON-RPC request
+```
+**Solutions:**
+1. Ensure proper JSON-RPC 2.0 format
+2. Check request ID is unique
+3. Verify method names and parameters
+
+#### Tool Not Available
+```
+Error: Tool 'sample' not found
+```
+**Solutions:**
+1. Verify server is properly loaded
+2. Check MCP client allowlist configuration
+3. Restart MCP client after configuration changes
+
+### Debug Mode
+
+Enable debug logging:
+
+```json
+{
+  "env": {
+    "CLAUDE_API_KEY": "your_key",
+    "LOG_LEVEL": "debug"
+  }
+}
+```
+
+### Test Server Manually
+
+```bash
+# Test server directly
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | marketing-post-generator-mcp
+
+# Expected response should list available tools
+```
+
 ## 📚 Documentation
 
-- [API Reference](./docs/api/) - Detailed API documentation
-- [User Guide](./docs/guides/user-guide.md) - Non-technical usage guide
-- [Developer Guide](./docs/guides/developer-guide.md) - Contributing and extending
-- [Deployment Guide](./docs/guides/deployment-guide.md) - Production deployment
-- [Architecture Overview](./docs/architecture.md) - Technical architecture
-- [Troubleshooting](./docs/troubleshooting.md) - Common issues and solutions
+- **API Reference**: [docs/api/](./docs/api/) - Detailed API documentation
+- **User Guide**: [docs/guides/user-guide.md](./docs/guides/user-guide.md) - Non-technical usage guide
+- **Developer Guide**: [docs/guides/developer-guide.md](./docs/guides/developer-guide.md) - Contributing and extending
+- **Claude Code Integration**: [examples/claude-code-integration.md](./examples/claude-code-integration.md) - Complete setup guide
+- **Examples**: [examples/](./examples/) - Working code examples
+- **Architecture**: [docs/architecture.md](./docs/architecture.md) - Technical architecture
+- **Troubleshooting**: [docs/troubleshooting.md](./docs/troubleshooting.md) - Common issues and solutions
+
+## 🤝 MCP Protocol Compliance
+
+This server fully implements the MCP (Model Context Protocol) specification:
+
+- ✅ **JSON-RPC 2.0**: Complete compliance with JSON-RPC protocol
+- ✅ **Standard Methods**: Implements all required MCP methods
+- ✅ **Error Handling**: Proper error codes and messages
+- ✅ **Tool Registration**: Dynamic tool discovery and registration
+- ✅ **Prompt Support**: Full prompt system implementation
+- ✅ **Session Management**: Proper session initialization and cleanup
+- ✅ **Transport Flexibility**: Both stdio and HTTP transports
 
 ## 🤝 Contributing
 
@@ -332,4 +604,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with ❤️ for content creators and marketers**
+**Ready to transform your content creation workflow with AI-powered MCP tools!** 🚀

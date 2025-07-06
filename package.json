@@ -47,6 +47,7 @@
     "url": "https://github.com/yourusername/marketing-post-generator-mcp/issues"
   },
   "homepage": "https://github.com/yourusername/marketing-post-generator-mcp#readme",
+  "documentation": "https://github.com/yourusername/marketing-post-generator-mcp/tree/main/docs",
   "devDependencies": {
     "@jest/globals": "^30.0.4",
     "@types/cors": "^2.8.19",

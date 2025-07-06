@@ -347,9 +347,7 @@
         "id": 20,
         "title": "Documentation and Examples",
         "description": "Create comprehensive documentation and examples for using the Marketing Post Generator MCP server.",
-        "details": "1. Create a README.md with installation and usage instructions\n2. Document all tools and prompts with examples\n3. Create example scripts for common workflows\n4. Add API documentation for programmatic usage\n5. Create a user guide for content writers\n\n```markdown\n# Marketing Post Generator MCP\n\nAn MCP server that leverages AI to automate the creation of marketing blog posts.\n\n## Features\n\n- Sample blog posts from a domain to extract positioning, tone, and content strategy\n- Summarize individual blog posts\n- Create and manage content plans for future posts\n- Generate narratives and bullet points for upcoming posts\n- Write complete blog posts from scratch\n\n## Installation\n\n### Prerequisites\n\n- Node.js 18 or higher\n- npm or yarn\n- Claude API key\n\n### Install from npm\n\n```bash\nnpm install marketing-post-generator-mcp\n```\n\n### Or clone and build from source\n\n```bash\ngit clone https://github.com/yourusername/marketing-post-generator-mcp.git\ncd marketing-post-generator-mcp\nnpm install\nnpm run build\n```\n\n## Usage\n\n### Environment Variables\n\nCreate a `.env` file with the following variables:\n\n```\nCLAUDE_API_KEY=your_api_key_here\nMCP_MODE=local  # or 'remote'\nMCP_PORT=3000   # for remote mode\n```\n\n### Start the server\n\n```bash\nnpm start\n```\n\n### Using Docker\n\n```bash\ndocker-compose up -d\n```\n\n## MCP Tools and Prompts\n\n### Initialization\n\nBefore using any tools, initialize the generator with a blog domain:\n\n```\n/marketing_post_generator_mcp__init https://example.com/blog\n```\n\n### Sample Blog Posts\n\nSample and analyze blog posts from a domain:\n\n```\n/marketing_post_generator_mcp__sample example.com 5\n```\n\n### Summarize a Blog Post\n\nGenerate a summary of a specific blog post:\n\n```\n/marketing_post_generator_mcp__summarize https://example.com/blog/post-1\n```\n\n### Create a Content Plan\n\nGenerate a content plan for future posts:\n\n```\n/marketing_post_generator_mcp__content_plan example.com month 4\n```\n\n### Generate a Post Narrative\n\nCreate a narrative outline for a post from the content plan:\n\n```\n/marketing_post_generator_mcp__generate_narrative post-id-1 detailed\n```\n\n### Write a Blog Post\n\nGenerate a complete blog post:\n\n```\n/marketing_post_generator_mcp__write_post --title=\"My Blog Post\" --topic=\"AI Content Generation\" --wordCount=1000\n```\n\nOr based on a narrative:\n\n```\n/marketing_post_generator_mcp__write_post --narrativeId=narrative-id-1 --wordCount=1500\n```\n\n## Example Workflows\n\n### Complete Content Generation Pipeline\n\n1. Initialize with your blog domain\n2. Sample existing content to understand tone and style\n3. Generate a content plan for the next month\n4. Create narratives for each post in the plan\n5. Generate complete blog posts from the narratives\n\n## API Documentation\n\nFor programmatic usage, see the [API Documentation](docs/api.md).\n\n## License\n\nMIT\n```\n\n```typescript\n// examples/complete-workflow.ts\nimport { MarketingPostGeneratorClient } from '../src/client';\n\nasync function runWorkflow() {\n  // Create client\n  const client = new MarketingPostGeneratorClient({\n    mode: 'local',\n    claudeApiKey: process.env.CLAUDE_API_KEY,\n  });\n  \n  try {\n    // Initialize with a domain\n    await client.init('https://example.com/blog');\n    console.log('Initialized with domain');\n    \n    // Sample the domain\n    const sampleResult = await client.sample('example.com', 5);\n    console.log('Sample analysis:', sampleResult.analysis);\n    \n    // Create a content plan\n    const planResult = await client.createContentPlan('example.com', 'month', 4);\n    console.log('Content plan created with', planResult.plan.length, 'posts');\n    \n    // Generate a post from the first item in the plan\n    const firstPost = planResult.plan[0];\n    const postResult = await client.writePost({\n      title: firstPost.title,\n      topic: firstPost.topic,\n      keywords: firstPost.keywords,\n      wordCount: 1000,\n    });\n    \n    console.log('Generated post saved to:', postResult.filePath);\n  } catch (error) {\n    console.error('Workflow error:', error);\n  } finally {\n    await client.close();\n  }\n}\n\nrunWorkflow().catch(console.error);\n```",
-        "testStrategy": "Verify documentation accuracy by following the instructions. Test example scripts to ensure they work as documented. Review API documentation for completeness and accuracy.",
-        "priority": "low",
+        "status": "done",
         "dependencies": [
           1,
           2,
@@ -369,8 +367,111 @@
           "13",
           "14"
         ],
-        "status": "pending",
-        "subtasks": []
+        "priority": "low",
+        "details": "1. Create a README.md with installation and usage instructions\n2. Document all tools and prompts with examples\n3. Create example scripts for common workflows\n4. Add API documentation for programmatic usage\n5. Create a user guide for content writers\n6. Create a developer guide\n7. Update deployment guide\n8. Add troubleshooting documentation\n9. Update package.json with documentation links\n10. Test and validate all documentation\n11. Create Claude Code integration guide\n\n```markdown\n# Marketing Post Generator MCP\n\nAn MCP server that leverages AI to automate the creation of marketing blog posts.\n\n## Features\n\n- Sample blog posts from a domain to extract positioning, tone, and content strategy\n- Summarize individual blog posts\n- Create and manage content plans for future posts\n- Generate narratives and bullet points for upcoming posts\n- Write complete blog posts from scratch\n\n## Installation\n\n### Prerequisites\n\n- Node.js 18 or higher\n- npm or yarn\n- Claude API key\n\n### Install from npm\n\n```bash\nnpm install marketing-post-generator-mcp\n```\n\n### Or clone and build from source\n\n```bash\ngit clone https://github.com/yourusername/marketing-post-generator-mcp.git\ncd marketing-post-generator-mcp\nnpm install\nnpm run build\n```\n\n## Usage\n\n### Environment Variables\n\nCreate a `.env` file with the following variables:\n\n```\nCLAUDE_API_KEY=your_api_key_here\nMCP_MODE=local  # or 'remote'\nMCP_PORT=3000   # for remote mode\n```\n\n### Start the server\n\n```bash\nnpm start\n```\n\n### Using Docker\n\n```bash\ndocker-compose up -d\n```\n\n## MCP Tools and Prompts\n\n### Initialization\n\nBefore using any tools, initialize the generator with a blog domain:\n\n```\n/marketing_post_generator_mcp__init https://example.com/blog\n```\n\n### Sample Blog Posts\n\nSample and analyze blog posts from a domain:\n\n```\n/marketing_post_generator_mcp__sample example.com 5\n```\n\n### Summarize a Blog Post\n\nGenerate a summary of a specific blog post:\n\n```\n/marketing_post_generator_mcp__summarize https://example.com/blog/post-1\n```\n\n### Create a Content Plan\n\nGenerate a content plan for future posts:\n\n```\n/marketing_post_generator_mcp__content_plan example.com month 4\n```\n\n### Generate a Post Narrative\n\nCreate a narrative outline for a post from the content plan:\n\n```\n/marketing_post_generator_mcp__generate_narrative post-id-1 detailed\n```\n\n### Write a Blog Post\n\nGenerate a complete blog post:\n\n```\n/marketing_post_generator_mcp__write_post --title=\"My Blog Post\" --topic=\"AI Content Generation\" --wordCount=1000\n```\n\nOr based on a narrative:\n\n```\n/marketing_post_generator_mcp__write_post --narrativeId=narrative-id-1 --wordCount=1500\n```\n\n## Example Workflows\n\n### Complete Content Generation Pipeline\n\n1. Initialize with your blog domain\n2. Sample existing content to understand tone and style\n3. Generate a content plan for the next month\n4. Create narratives for each post in the plan\n5. Generate complete blog posts from the narratives\n\n## API Documentation\n\nFor programmatic usage, see the [API Documentation](docs/api.md).\n\n## License\n\nMIT\n```\n\n```typescript\n// examples/complete-workflow.ts\nimport { MarketingPostGeneratorClient } from '../src/client';\n\nasync function runWorkflow() {\n  // Create client\n  const client = new MarketingPostGeneratorClient({\n    mode: 'local',\n    claudeApiKey: process.env.CLAUDE_API_KEY,\n  });\n  \n  try {\n    // Initialize with a domain\n    await client.init('https://example.com/blog');\n    console.log('Initialized with domain');\n    \n    // Sample the domain\n    const sampleResult = await client.sample('example.com', 5);\n    console.log('Sample analysis:', sampleResult.analysis);\n    \n    // Create a content plan\n    const planResult = await client.createContentPlan('example.com', 'month', 4);\n    console.log('Content plan created with', planResult.plan.length, 'posts');\n    \n    // Generate a post from the first item in the plan\n    const firstPost = planResult.plan[0];\n    const postResult = await client.writePost({\n      title: firstPost.title,\n      topic: firstPost.topic,\n      keywords: firstPost.keywords,\n      wordCount: 1000,\n    });\n    \n    console.log('Generated post saved to:', postResult.filePath);\n  } catch (error) {\n    console.error('Workflow error:', error);\n  } finally {\n    await client.close();\n  }\n}\n\nrunWorkflow().catch(console.error);\n```",
+        "testStrategy": "Verify documentation accuracy by following the instructions. Test all example scripts (basic-workflow.js, advanced-workflow.ts, batch-generation.js) to ensure they work as documented. Review API documentation for completeness and accuracy. Validate the user guide with actual content writers to ensure it meets their needs. Test the Claude Code integration guide with real integration scenarios.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Create comprehensive README.md",
+            "description": "Create a detailed README.md with installation instructions, feature overview, usage documentation, and examples.",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Create API documentation",
+            "description": "Create comprehensive API documentation for programmatic usage of the Marketing Post Generator MCP server.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Completed API documentation in docs/api/tools.md, prompts.md, and transport.md",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Create user guide for content writers",
+            "description": "Develop a user-friendly guide specifically for content writers who will be using the Marketing Post Generator MCP.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Guide should focus on non-technical aspects and provide clear instructions for content writers to effectively use the system.",
+            "testStrategy": "Have actual content writers review the guide and provide feedback."
+          },
+          {
+            "id": 4,
+            "title": "Create example scripts for common workflows",
+            "description": "Develop and document example scripts that demonstrate common usage patterns and workflows.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Completed three example scripts: basic-workflow.js, advanced-workflow.ts (with TypeScript, parallel processing, and quality metrics), and batch-generation.js (with bulk processing and progress tracking).",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Create Claude Code integration guide",
+            "description": "Develop a comprehensive guide for integrating the Marketing Post Generator with Claude Code.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Document the steps, requirements, and best practices for integrating with Claude Code.",
+            "testStrategy": "Test the integration guide with actual Claude Code integration scenarios."
+          },
+          {
+            "id": 6,
+            "title": "Create developer guide",
+            "description": "Develop a guide for developers who want to extend or modify the Marketing Post Generator.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Include architecture overview, code organization, extension points, and contribution guidelines.",
+            "testStrategy": "Have developers review the guide and attempt to implement extensions based on it."
+          },
+          {
+            "id": 7,
+            "title": "Update deployment guide",
+            "description": "Update the deployment documentation with the latest best practices and configurations.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Include cloud deployment options, scaling considerations, and security best practices.",
+            "testStrategy": "Test deployments following the guide in different environments."
+          },
+          {
+            "id": 8,
+            "title": "Create troubleshooting documentation",
+            "description": "Develop a comprehensive troubleshooting guide for common issues and their solutions.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Include common error messages, diagnostic steps, and resolution strategies.",
+            "testStrategy": "Verify solutions for each documented issue."
+          },
+          {
+            "id": 9,
+            "title": "Update package.json with documentation links",
+            "description": "Add documentation links to package.json to make them discoverable through npm.",
+            "status": "done",
+            "dependencies": [],
+            "details": "Add homepage, repository, bugs, and documentation fields to package.json.",
+            "testStrategy": "Verify links are correctly displayed on npm page."
+          },
+          {
+            "id": 10,
+            "title": "Test and validate all documentation",
+            "description": "Thoroughly test and validate all documentation for accuracy and completeness.",
+            "status": "done",
+            "dependencies": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9
+            ],
+            "details": "Follow all instructions in the documentation to ensure they work as described. Check for consistency across all documentation.",
+            "testStrategy": "Create a validation checklist and have multiple team members verify each item."
+          }
+        ]
       },
       {
         "id": 19,
@@ -1002,7 +1103,7 @@
     ],
     "metadata": {
       "created": "2025-07-04T10:32:12.253Z",
-      "updated": "2025-07-06T12:03:45.633Z",
+      "updated": "2025-07-06T17:18:40.360Z",
       "description": "Tasks for master context"
     }
   }

@@ -1,226 +1,417 @@
 ---
-description: Execute SINGLE tasks using TaskMaster AI with mandatory planning, user approval, and no auto-progression
+description: Execute SINGLE TaskMaster tasks with structured planning, user approval, and controlled execution
+version: 2.0
 ---
 
-# CRITICAL: SINGLE TASK EXECUTION ONLY
+```xml
+<command>
+  <metadata>
+    <name>execute_task</name>
+    <version>2.0</version>
+    <description>Execute a single TaskMaster task with mandatory planning, user approval, and controlled execution</description>
+    <author>TaskMaster AI Integration</author>
+  </metadata>
 
-This command implements **EXACTLY ONE** task or subtask at a time and **NEVER** automatically progresses to the next task. After completion, it STOPS and waits for user instruction.
+  <parameters>
+    <parameter name="task_id" type="string" required="false" default="next_task">
+      <description>Specific TaskMaster task ID to execute (e.g., "1.3" or "next")</description>
+      <validation>Must be valid TaskMaster task ID format or "next"</validation>
+    </parameter>
+    <parameter name="thinking_level" type="enum" required="false" default="auto">
+      <description>Cognitive complexity level for planning</description>
+      <values>
+        <value name="think">Simple tasks, bug fixes, documentation</value>
+        <value name="think_hard">New features, refactoring, integration</value>
+        <value name="think_harder">Complex features, architectural changes</value>
+        <value name="ultrathink">System design, major architectural decisions</value>
+        <value name="auto">Automatically determine based on task complexity</value>
+      </values>
+    </parameter>
+  </parameters>
 
-## Full Task List
-!`Bash(task-master list)`
+  <context_gathering>
+    <environment>
+      <git_status>!`Bash(git status --porcelain)`</git_status>
+      <git_branch>!`Bash(git branch --show-current)`</git_branch>
+    </environment>
+    <taskmaster_state>
+      <all_tasks>!`Bash(task-master list | sed '/Suggested Next Steps/,$d')`</all_tasks>
+      <next_task>!`Bash(task-master next)`</next_task>
+      <current_tag>!`Bash(task-master list-tags | grep "Current:" | head -1)`</current_tag>
+    </taskmaster_state>
+  </context_gathering>
 
-## Your Current task
+  <workflow>
+    <phase id="1" name="initialization">
+      <description>Initialize execution environment and gather context</description>
+      <steps>
+        <step id="1.1" name="validate_environment">
+          <action>Check git status and ensure clean working directory</action>
+          <tools>Bash</tools>
+          <critical>true</critical>
+        </step>
+        <step id="1.2" name="determine_task">
+          <action>Resolve target task ID from user input or next available task</action>
+          <tools>mcp__taskmaster-ai__get_task, mcp__taskmaster-ai__next_task</tools>
+          <output>Specific TaskMaster task ID and details</output>
+        </step>
+        <step id="1.3" name="fetch_task_details">
+          <action>Retrieve comprehensive task information</action>
+          <tools>mcp__taskmaster-ai__get_task</tools>
+          <output>Full task context including dependencies, subtasks, and current status</output>
+        </step>
+      </steps>
+    </phase>
 
-### Phase 1: Planning Mode (MANDATORY - NEVER SKIP)
-1. **Launch Planning Sub-Agent**: Use the Task tool to create a planning sub-agent that will:
-   - Analyze the user's request thoroughly
-   - Check existing TaskMaster tasks for context using mcp__taskmaster-ai__get_tasks
-   - Find the most relevant task using mcp__taskmaster-ai__next_task or mcp__taskmaster-ai__get_task
-   - Assess task complexity using mcp__taskmaster-ai__complexity_report and determine appropriate thinking level:
-     - Simple tasks → "think" 
-     - Moderate complexity → "think hard"
-     - Complex tasks → "think harder" 
-     - Highly complex tasks → "ultrathink"
-   - Review current codebase state and implementation progress
-   - Create a comprehensive execution plan
+    <phase id="2" name="planning">
+      <description>Create comprehensive implementation plan using sub-agent</description>
+      <steps>
+        <step id="2.1" name="launch_planning_agent">
+          <action>Launch dedicated planning sub-agent</action>
+          <sub_agent>
+            <goal>Create comprehensive implementation plan for SINGLE TaskMaster task</goal>
+            <constraints>
+              <constraint>Focus on ONE specific task/subtask only</constraint>
+              <constraint>No automatic progression to other tasks</constraint>
+              <constraint>Must use TaskMaster research for technical details</constraint>
+            </constraints>
+            <required_outputs>
+              <output name="task_identification">Single task being implemented</output>
+              <output name="task_analysis">Breakdown of task components</output>
+              <output name="current_state">Assessment of existing implementation</output>
+              <output name="implementation_strategy">Detailed approach and methodology</output>
+              <output name="step_by_step_plan">Granular steps with deliverables</output>
+              <output name="risk_assessment">Potential challenges and mitigation</output>
+              <output name="testing_strategy">Verification and validation approach</output>
+              <output name="success_criteria">Definition of completion</output>
+              <output name="taskmaster_updates">Plan for status and progress tracking</output>
+              <output name="execution_boundary">Clear stopping point</output>
+            </required_outputs>
+            <tools>
+              <tool>mcp__taskmaster-ai__get_tasks</tool>
+              <tool>mcp__taskmaster-ai__get_task</tool>
+              <tool>mcp__taskmaster-ai__research</tool>
+              <tool>mcp__taskmaster-ai__analyze_project_complexity</tool>
+              <tool>Read, Glob, Grep</tool>
+            </tools>
+            <completion_action>exit_plan_mode</completion_action>
+          </sub_agent>
+        </step>
+      </steps>
+    </phase>
 
-2. **Planning Sub-Agent Instructions**:
-   ```
-   You are a planning sub-agent for the execute command. Your task is to create a comprehensive plan for the following request:
+    <phase id="3" name="user_approval">
+      <description>Present plan to user and handle feedback</description>
+      <checkpoint id="plan_approval">
+        <prompt>Review the implementation plan and choose your action:</prompt>
+        <options>
+          <option value="approve" next_phase="4">Approve plan and begin implementation</option>
+          <option value="modify" next_phase="3.1">Request modifications to plan</option>
+          <option value="reject" action="abort">Reject plan and exit</option>
+        </options>
+      </checkpoint>
 
-   USER REQUEST: {user_request}
+      <sub_phase id="3.1" name="plan_iteration">
+        <description>Handle plan modifications based on user feedback</description>
+        <steps>
+          <step id="3.1.1" name="analyze_feedback">
+            <action>Process user feedback and determine required changes</action>
+            <tools>mcp__taskmaster-ai__get_tasks</tools>
+          </step>
+          <step id="3.1.2" name="revise_plan">
+            <action>Create updated plan incorporating feedback</action>
+            <sub_agent>
+              <goal>Revise implementation plan based on user feedback</goal>
+              <inputs>
+                <input name="original_plan">Previous planning output</input>
+                <input name="user_feedback">User's requested changes</input>
+                <input name="current_state">Current implementation state</input>
+              </inputs>
+              <completion_action>exit_plan_mode</completion_action>
+            </sub_agent>
+          </step>
+          <step id="3.1.3" name="re_approval">
+            <action>Present revised plan for approval</action>
+            <checkpoint_ref>plan_approval</checkpoint_ref>
+          </step>
+        </steps>
+      </sub_phase>
+    </phase>
 
-   CRITICAL: Focus on implementing ONLY ONE SPECIFIC TASK/SUBTASK. Do NOT plan for multiple tasks or automatic progression to next tasks.
+    <phase id="4" name="implementation">
+      <description>Execute the approved implementation plan</description>
+      <steps>
+        <step id="4.1" name="setup_tracking">
+          <action>Initialize progress tracking systems</action>
+          <sub_steps>
+            <sub_step>Set TaskMaster task status to "in_progress"</sub_step>
+            <sub_step>Create TodoWrite list based on approved plan</sub_step>
+            <sub_step>Add initial implementation notes to TaskMaster</sub_step>
+          </sub_steps>
+          <tools>mcp__taskmaster-ai__set_task_status, TodoWrite, mcp__taskmaster-ai__update_task</tools>
+        </step>
 
-   First, check the current TaskMaster tasks and find the most relevant SINGLE task:
-   1. Use mcp__taskmaster-ai__get_tasks to see all available tasks
-   2. Use mcp__taskmaster-ai__next_task to find the recommended next task
-   3. Use mcp__taskmaster-ai__get_task with specific ID if user mentioned one
-   4. **CRITICAL**: Select ONLY ONE task or subtask to implement
+        <step id="4.2" name="execute_plan">
+          <action>Implement each step of the approved plan</action>
+          <iteration_pattern>
+            <for_each>planned_step</for_each>
+            <actions>
+              <action>Mark step as in_progress in TodoWrite</action>
+              <action>Execute implementation step</action>
+              <action>Update TaskMaster with progress notes</action>
+              <action>Mark step as completed in TodoWrite</action>
+              <action>Provide brief progress update</action>
+            </actions>
+          </iteration_pattern>
+          <tools>TodoWrite, mcp__taskmaster-ai__update_subtask, Edit, MultiEdit, Write, Bash</tools>
+          
+          <troubleshooting_protocol>
+            <when_problems_occur>
+              <description>If any errors, blockers, or unexpected issues arise during implementation</description>
+              <mandatory_actions>
+                <action priority="1">IMMEDIATELY use mcp__taskmaster-ai__research to investigate the problem</action>
+                <action priority="2">Include specific error messages, technology stack, and context in research query</action>
+                <action priority="3">Apply research findings to resolve the issue</action>
+                <action priority="4">Update TaskMaster with both problem and solution details</action>
+                <action priority="5">If research doesn't solve the issue, use research again with refined query</action>
+              </mandatory_actions>
+              <research_query_examples>
+                <example>How to fix TypeScript error "Cannot find module" in Next.js 15 project</example>
+                <example>TailwindCSS classes not applying in Next.js src directory setup</example>
+                <example>Auth.js middleware configuration issues with Next.js 15</example>
+                <example>React component rendering errors with TypeScript strict mode</example>
+              </research_query_examples>
+              <escalation_criteria>
+                <criterion>If multiple research attempts don't resolve the issue</criterion>
+                <criterion>If the problem requires architectural changes not in the original plan</criterion>
+                <criterion>If external dependencies or services are unavailable</criterion>
+                <response>Update TaskMaster with detailed problem description and request user guidance</response>
+              </escalation_criteria>
+            </when_problems_occur>
+          </troubleshooting_protocol>
+        </step>
 
-   {thinking_level} about this SINGLE task and create a detailed plan that includes:
+        <step id="4.3" name="testing_validation">
+          <action>Execute testing strategy from approved plan</action>
+          <sub_steps>
+            <sub_step>Run automated tests if applicable</sub_step>
+            <sub_step>Perform manual validation</sub_step>
+            <sub_step>Verify success criteria are met</sub_step>
+            <sub_step>Document test results in TaskMaster</sub_step>
+          </sub_steps>
+          <tools>Bash, mcp__taskmaster-ai__update_subtask</tools>
+          
+          <testing_troubleshooting>
+            <when_tests_fail>
+              <description>If tests fail, validation doesn't pass, or success criteria aren't met</description>
+              <mandatory_research_actions>
+                <action>Use mcp__taskmaster-ai__research to investigate test failures or validation issues</action>
+                <action>Research best practices for the specific testing scenario</action>
+                <action>Research common issues with the technology stack being tested</action>
+                <action>Apply research findings to fix tests or validation</action>
+                <action>Document the problem and solution in TaskMaster</action>
+              </mandatory_research_actions>
+              <research_focus_areas>
+                <area>Test framework configuration and setup</area>
+                <area>Common testing patterns for the technology stack</area>
+                <area>Debugging strategies for specific test failures</area>
+                <area>Integration testing best practices</area>
+              </research_focus_areas>
+            </when_tests_fail>
+          </testing_troubleshooting>
+        </step>
 
-   1. **Single Task Focus**: Clearly identify the ONE task/subtask being implemented
-   2. **Task Analysis**: Break down ONLY this specific request into core components
-   3. **TaskMaster Integration**: Map request to the specific TaskMaster task (no others)
-   4. **Current State Assessment**: Review existing code and implementation progress for THIS task only
-   5. **Implementation Strategy**: Outline approach and methodology for THIS task only
-   6. **Step-by-Step Plan**: Detailed steps with clear deliverables for THIS task only
-   8. **Risk Assessment**: Identify potential challenges for THIS task only
-   9. **Testing Strategy**: Define testing approach for THIS task only
-   10. **Success Criteria**: Define how success will be measured for THIS task only
-   11. **TaskMaster Updates**: Plan for updating ONLY this task's status and subtasks
-   12. **Execution Boundary**: Clearly state where execution stops (no auto-progression)
+        <step id="4.4" name="completion">
+          <action>Finalize task completion</action>
+          <sub_steps>
+            <sub_step>Set TaskMaster task status to "done"</sub_step>
+            <sub_step>Add final implementation notes</sub_step>
+            <sub_step>Update TodoWrite with completion status</sub_step>
+            <sub_step>Commit changes if appropriate</sub_step>
+          </sub_steps>
+          <tools>mcp__taskmaster-ai__set_task_status, mcp__taskmaster-ai__update_task, TodoWrite, Bash</tools>
+        </step>
+      </steps>
+    </phase>
 
-   Present the plan in a clear, structured format for user approval.
-   
-   After creating the plan, use exit_plan_mode to present it to the user.
-   ```
+    <phase id="5" name="completion_protocol">
+      <description>Controlled completion without auto-progression</description>
+      <steps>
+        <step id="5.1" name="completion_summary">
+          <action>Provide comprehensive completion summary</action>
+          <required_content>
+            <content>Task completed and key deliverables</content>
+            <content>Any issues encountered and resolved</content>
+            <content>Current TaskMaster status</content>
+            <content>Testing results and validation</content>
+          </required_content>
+        </step>
 
-### Phase 2: Plan Approval (MANDATORY - WAIT FOR USER APPROVAL)
-1. **Present Plan**: The planning sub-agent will present the comprehensive plan
-2. **STOP AND WAIT**: Do NOT proceed to implementation until user explicitly approves
-3. **Wait for User Response**:
-   - If user approves → proceed to Phase 3
-   - If user requests modifications → proceed to Phase 4 (Iteration)
-   - If user rejects → end execution
+        <step id="5.2" name="suggest_next">
+          <action>Suggest logical next steps WITHOUT implementing them</action>
+          <tools>mcp__taskmaster-ai__next_task</tools>
+          <constraint>MUST NOT automatically execute next task</constraint>
+        </step>
 
-### Phase 3: Implementation (ONLY AFTER EXPLICIT USER APPROVAL)
-1. **CRITICAL: Check Git Status**: Use Bash tool to check current git status and ensure on master/main
-2. **Create Feature Branch**: Create a new feature branch for this task using git checkout -b feature/task-{id}
-3. **Update TaskMaster**: 
-   - Set ONLY the specific task/subtask status to "in_progress" using mcp__taskmaster-ai__set_task_status
-   - Add implementation notes using mcp__taskmaster-ai__update_task or mcp__taskmaster-ai__update_subtask
-4. **Initialize Todo List**: Use TodoWrite to create implementation todos based on approved plan
-5. **Execute Implementation**: Follow the approved plan step by step:
-   - Mark each step as in_progress using TodoWrite
-   - Implement the step completely
-   - Update TaskMaster with progress using mcp__taskmaster-ai__update_subtask
-   - Mark as completed using TodoWrite
-   - Provide brief progress updates
-6. **Testing**: Implement and run tests as defined in the plan
-7. **Validation**: Ensure all success criteria are met
-8. **Complete ONLY Current Task**: Set ONLY the current task/subtask status to "done" using mcp__taskmaster-ai__set_task_status
-9. **STOP EXECUTION**: Do NOT automatically progress to next task - inform user of completion and wait for next instruction
+        <step id="5.3" name="await_instruction">
+          <action>Wait for explicit user instruction for next action</action>
+          <prompt>Task completed. What would you like to do next?</prompt>
+        </step>
+      </steps>
+    </phase>
+  </workflow>
 
-### Phase 4: Iteration Support
-If modifications are needed during planning or implementation:
+  <integration_specifications>
+    <taskmaster_integration>
+      <required_tools>
+        <tool name="mcp__taskmaster-ai__get_tasks" purpose="View all tasks and status"/>
+        <tool name="mcp__taskmaster-ai__next_task" purpose="Find recommended next task"/>
+        <tool name="mcp__taskmaster-ai__get_task" purpose="Get specific task details"/>
+        <tool name="mcp__taskmaster-ai__set_task_status" purpose="Update task status"/>
+        <tool name="mcp__taskmaster-ai__update_task" purpose="Add task-level notes"/>
+        <tool name="mcp__taskmaster-ai__update_subtask" purpose="Add subtask progress notes"/>
+        <tool name="mcp__taskmaster-ai__research" purpose="Research technical details"/>
+        <tool name="mcp__taskmaster-ai__analyze_project_complexity" purpose="Assess task complexity"/>
+      </required_tools>
 
-1. **Launch Iteration Sub-Agent**: Use Task tool with iteration context:
-   ```
-   You are handling an iteration of the execute command.
+      <status_lifecycle>
+        <status name="pending" description="Task ready for work"/>
+        <status name="in_progress" description="Task currently being implemented"/>
+        <status name="done" description="Task completed successfully"/>
+        <status name="blocked" description="Task waiting on external factors"/>
+        <status name="deferred" description="Task postponed"/>
+        <status name="cancelled" description="Task no longer needed"/>
+      </status_lifecycle>
 
-   CURRENT TASKMASTER STATE: Use mcp__taskmaster-ai__get_tasks to get current state
-   ORIGINAL PLAN: {original_plan}
-   CURRENT IMPLEMENTATION STATE: {current_state}
-   USER FEEDBACK: {user_feedback}
+      <progress_tracking>
+        <task_level>Use update_task for major milestones and decisions</task_level>
+        <subtask_level>Use update_subtask for detailed progress logging</subtask_level>
+        <timestamping>All updates include automatic timestamps</timestamping>
+        <linking>Link commits to TaskMaster task IDs</linking>
+      </progress_tracking>
+    </taskmaster_integration>
 
-   {thinking_level} about the user's feedback and current state. Create an updated plan that:
-   1. Incorporates the user's feedback
-   2. Accounts for the current implementation state
-   3. Provides clear next steps
-   4. Maintains continuity with completed work
-   5. Updates TaskMaster tasks accordingly
+    <todo_integration>
+      <usage>Create TodoWrite lists for implementation tracking</usage>
+      <granularity>One todo item per implementation step</granularity>
+      <real_time_updates>Update status as work progresses</real_time_updates>
+      <completion_tracking>Mark items complete immediately after finishing</completion_tracking>
+    </todo_integration>
 
-   Present the updated plan for user approval using exit_plan_mode.
-   ```
+    <git_integration>
+      <pre_implementation>Always check git status before starting</pre_implementation>
+      <commit_messages>Include TaskMaster task ID in commit messages</commit_messages>
+      <branch_awareness>Respect current branch and don't switch automatically</branch_awareness>
+      <clean_state>Ensure working directory is clean before major changes</clean_state>
+    </git_integration>
+  </integration_specifications>
 
-2. **Return to Phase 2**: Present updated plan for approval
+  <safeguards_and_controls>
+    <execution_controls>
+      <mandatory_planning>All work must be planned and approved before implementation</mandatory_planning>
+      <single_task_focus>Never work on multiple tasks simultaneously</single_task_focus>
+      <no_auto_progression>Never automatically move to next task after completion</no_auto_progression>
+      <user_approval_required>All plans must receive explicit user approval</user_approval_required>
+      <controlled_completion>Execution stops at defined boundary</controlled_completion>
+    </execution_controls>
 
-## TaskMaster Integration Guidelines
+    <violation_detection>
+      <implementing_without_plan>
+        <detection>If implementation begins without approved plan</detection>
+        <response>STOP immediately and restart with planning phase</response>
+      </implementing_without_plan>
+      <skipping_approval>
+        <detection>If plan is not presented for user approval</detection>
+        <response>STOP and present plan for explicit approval</response>
+      </skipping_approval>
+      <multiple_task_work>
+        <detection>If work begins on multiple tasks simultaneously</detection>
+        <response>STOP and refocus on single approved task</response>
+      </multiple_task_work>
+      <auto_progression>
+        <detection>If automatic progression to next task occurs</detection>
+        <response>STOP and wait for user instruction</response>
+      </auto_progression>
+    </violation_detection>
 
-### Core MCP Tools Usage
-- **mcp__taskmaster-ai__get_tasks**: View all tasks, filter by status
-- **mcp__taskmaster-ai__next_task**: Find recommended next task
-- **mcp__taskmaster-ai__get_task**: Get specific task details
-- **mcp__taskmaster-ai__add_task**: Create new tasks if needed
-- **mcp__taskmaster-ai__update_task**: Update main task information
-- **mcp__taskmaster-ai__update_subtask**: Add progress notes to subtasks
-- **mcp__taskmaster-ai__set_task_status**: Change task status (pending, in_progress, done, etc.)
-- **mcp__taskmaster-ai__expand_task**: Break tasks into subtasks
-- **mcp__taskmaster-ai__analyze_project_complexity**: Analyze task complexity
+    <error_handling>
+      <planning_failures>
+        <condition>Planning sub-agent fails or produces incomplete plan</condition>
+        <response>Retry with simplified approach or request user guidance</response>
+      </planning_failures>
+      <implementation_blockers>
+        <condition>Implementation encounters unexpected obstacles</condition>
+        <response>
+          <step>IMMEDIATELY use mcp__taskmaster-ai__research to investigate the blocker</step>
+          <step>Apply research findings to attempt resolution</step>
+          <step>If research doesn't resolve the blocker, use research again with refined query</step>
+          <step>If multiple research attempts fail, pause execution and update TaskMaster with blocker details</step>
+          <step>Request user guidance only after thorough research attempts</step>
+        </response>
+      </implementation_blockers>
+      <context_loss>
+        <condition>Context is lost between phases or sub-agents</condition>
+        <response>Rebuild context from TaskMaster and TodoWrite state</response>
+      </context_loss>
+      <tool_failures>
+        <condition>TaskMaster or other tools become unavailable</condition>
+        <response>Gracefully degrade functionality and notify user</response>
+      </tool_failures>
+    </error_handling>
+  </safeguards_and_controls>
 
-### Task Status Management
-- **Before starting**: Set task status to "in_progress"
-- **During work**: Use update_subtask to log progress and notes
-- **After completion**: Set task status to "done"
-- **If blocked**: Set status to "blocked" and add notes about blockers
+  <examples>
+    <example category="simple" complexity="think">
+      <input>/execute "Fix typo in header component"</input>
+      <process>
+        <step>Map to UI component TaskMaster task</step>
+        <step>Focus on single typo fix (one subtask)</step>
+        <step>Simple 3-step plan with quick approval</step>
+        <step>Implement fix and update TaskMaster</step>
+        <step>STOP after completion, suggest next but wait</step>
+      </process>
+      <expected_outcome>Single typo fixed, TaskMaster updated, user notified of completion</expected_outcome>
+    </example>
 
-### Implementation Tracking
-- Use TaskMaster subtasks to track implementation steps
-- Log technical decisions and challenges in task updates
-- Link commits to task IDs in commit messages
-- Update task details with final implementation notes
+    <example category="moderate" complexity="think_hard">
+      <input>/execute "Implement Auth.js middleware setup"</input>
+      <process>
+        <step>Map to authentication TaskMaster task (e.g., task 3, subtask 4)</step>
+        <step>Focus ONLY on middleware implementation</step>
+        <step>Comprehensive planning with research</step>
+        <step>Implement middleware with progress tracking</step>
+        <step>STOP after middleware complete, suggest next subtask but wait</step>
+      </process>
+      <expected_outcome>Middleware implemented, TaskMaster updated, ready for next auth component</expected_outcome>
+    </example>
 
-## Thinking Level Assessment
+    <example category="complex" complexity="think_harder">
+      <input>/execute "Set up core messaging infrastructure"</input>
+      <process>
+        <step>Map to messaging system TaskMaster task (e.g., task 11)</step>
+        <step>Focus on core infrastructure only</step>
+        <step>Detailed planning with architectural considerations</step>
+        <step>Implement infrastructure with extensive tracking</step>
+        <step>STOP after infrastructure complete, suggest subtask breakdown</step>
+      </process>
+      <expected_outcome>Core infrastructure established, TaskMaster updated, ready for feature implementation</expected_outcome>
+    </example>
+  </examples>
 
-Determine thinking level based on task characteristics:
-
-- **"think"**: Simple bug fixes, documentation updates, minor tweaks
-- **"think hard"**: New features, refactoring, integration tasks
-- **"think harder"**: Complex features, architectural changes, multi-system integration
-- **"ultrathink"**: System design, major architectural decisions, complex problem solving
-
-## Error Handling
-
-- If planning fails, retry with simpler thinking level
-- If implementation encounters blockers, pause and request user guidance
-- If iterations create conflicts, present options to user for resolution
-- Always maintain context between sub-agent launches
-- Update TaskMaster with any blockers or issues encountered
-
-## Integration Guidelines
-
-- Use TodoWrite for progress tracking throughout all phases
-- Use TaskMaster MCP tools for task management and context
-- Maintain context between sub-agent launches
-- Provide clear status updates at each phase transition
-- **CRITICAL**: Always check current git status before making changes
-- Link all work to TaskMaster task IDs
-
-## EXECUTION SAFEGUARDS
-
-**MANDATORY WORKFLOW ENFORCEMENT:**
-1. **Phase 1**: MUST launch planning sub-agent and create comprehensive plan for SINGLE task only
-2. **Phase 2**: MUST present plan and WAIT for explicit user approval
-4. **Never skip planning phase** - all work must be planned and approved first
-6. **SINGLE TASK RULE**: NEVER work on multiple tasks in one execution - focus on ONE task/subtask only
-7. **NO AUTO-PROGRESSION**: NEVER automatically move to next task after completion - STOP and wait for user instruction
-
-**VIOLATION PREVENTION:**
-- If you find yourself implementing without a plan → STOP and restart with planning
-- If you skip user approval → STOP and present plan for approval
-- If you bypass any phase → STOP and follow the correct workflow
-- **If you start working on multiple tasks → STOP and focus on ONE task only**
-- **If you automatically progress to next task → STOP and inform user of completion**
-- **If you continue beyond the planned single task → STOP and wait for new instructions**
-
-**COMPLETION PROTOCOL:**
-- After completing the planned single task, you MUST:
-  1. Set only the current task status to "done"
-  2. Provide completion summary
-  3. Suggest next logical task but DO NOT implement it
-  4. Wait for user to decide next action (new /execute command, different task, etc.)
-
-## Examples
-
-### Simple Task
+  <project_configuration>
+    <project_root>/Users/asafatzmon/dev/marketing-post-generator-mcp</project_root>
+    <project_type>Marketing Post Generator MCP server for automated content creation</project_type>
+    <technology_stack>
+      <primary>Node.js, TypeScript, Express</primary>
+      <containerization>Docker</containerization>
+      <integration>Model Context Protocol (MCP)</integration>
+    </technology_stack>
+    <development_patterns>
+      <src_directory>src/</src_directory>
+      <api_structure>MCP protocol endpoints</api_structure>
+      <type_safety>Strict TypeScript with tsconfig.json</type_safety>
+      <docker>Dockerfile and docker-compose.yml</docker>
+    </development_patterns>
+  </project_configuration>
+</command>
 ```
-/execute "Fix the typo in the header component"
-```
-- Planning uses "think" level
-- Check TaskMaster for existing UI/component tasks
-- Focus on ONLY the typo fix (one subtask)
-- Simple 3-step plan with TaskMaster updates
-- Quick approval and implementation
-- **STOPS** after fixing typo - suggests next task but waits for user
-
-### Complex Task - Single Subtask Focus
-```
-/execute "Implement Auth.js middleware setup"
-```
-- Planning uses "think hard" level
-- Map to existing TaskMaster authentication task #3, subtask #4 ONLY
-- Focus ONLY on middleware implementation (not full auth system)
-- Comprehensive planning for this specific subtask
-- **STOPS** after middleware is complete - does NOT continue to UI components
-- Suggests next subtask (3.5) but waits for user instruction
-
-### Highly Complex Task - Single Task Focus
-```
-/execute "Set up core messaging infrastructure"
-```
-- Planning uses "think harder" level
-- Check TaskMaster for messaging system tasks (likely task #11)
-- Focus ONLY on core infrastructure setup (one main task)
-- Does NOT implement full messaging system in one go
-- **STOPS** after infrastructure is complete
-- Suggests breaking into subtasks or next logical step but waits for user
-
-## Project-Specific Context
-
-- **Project Root**: /Users/asafatzmon/dev/book-borrow
-- **TaskMaster Tasks**: Book borrowing/lending system with 20 main tasks
-- **Current Status**: Task #1 (Setup) completed, Task #2 (Prisma) pending
-- **Next Priority**: Authentication system (Task #3) with 5 subtasks
-- **Technology Stack**: Next.js, TypeScript, TailwindCSS, Auth.js v5, Prisma, Docker

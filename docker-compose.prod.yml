@@ -117,7 +117,7 @@ volumes:
   logs:
     driver: local
     driver_opts:
-      type: none  
+      type: none
       o: bind
       device: ${LOGS_DIR:-./logs}
   prometheus-data:

@@ -12,10 +12,15 @@ const HOST = process.env.MCP_HOST || 'localhost';
 const TIMEOUT = 5000; // 5 seconds timeout
 
 async function performHealthCheck() {
+  // Validate configuration
+  if (!HOST || !PORT || isNaN(Number(PORT))) {
+    throw new Error('Invalid HOST or PORT configuration');
+  }
+
   return new Promise((resolve, reject) => {
     const options = {
       hostname: HOST,
-      port: PORT,
+      port: Number(PORT),
       path: '/health',
       method: 'GET',
       timeout: TIMEOUT,
@@ -32,7 +37,7 @@ async function performHealthCheck() {
         if (res.statusCode === 200) {
           try {
             const health = JSON.parse(data);
-            if (health.status === 'healthy') {
+            if (health && typeof health === 'object' && health.status === 'healthy') {
               console.log('✓ Health check passed:', health);
               resolve(true);
             } else {
@@ -57,6 +62,7 @@ async function performHealthCheck() {
 
     req.on('timeout', () => {
       console.error('✗ Health check failed - timeout');
+      req.abort(); // Explicit cleanup
       req.destroy();
       reject(new Error('Health check timeout'));
     });
@@ -68,9 +74,15 @@ async function performHealthCheck() {
 // Run health check
 performHealthCheck()
   .then(() => {
+    console.log('Health check completed successfully');
     process.exit(0);
   })
   .catch((error) => {
-    console.error('Health check failed:', error.message);
+    console.error('Health check failed:', {
+      message: error.message,
+      host: HOST,
+      port: PORT,
+      timestamp: new Date().toISOString()
+    });
     process.exit(1);
   });

@@ -67,7 +67,7 @@ cleanup_containers() {
     fi
     
     # Find and remove any remaining containers with our image
-    local containers=$(docker ps -a --filter "ancestor=$IMAGE_NAME" --format "{{.ID}}" 2>/dev/null || true)
+    local containers; containers=$(docker ps -a --filter "ancestor=$IMAGE_NAME" --format "{{.ID}}" 2>/dev/null || true)
     if [ -n "$containers" ]; then
         if confirm_action "Remove remaining containers using $IMAGE_NAME image?" "$force"; then
             echo "$containers" | xargs docker rm -f
@@ -87,7 +87,7 @@ cleanup_images() {
     
     if [ "$remove_all" = "true" ]; then
         # Remove all images with our name
-        local images=$(docker images "$IMAGE_NAME" --format "{{.ID}}" 2>/dev/null || true)
+        local images; images=$(docker images "$IMAGE_NAME" --format "{{.ID}}" 2>/dev/null || true)
         if [ -n "$images" ]; then
             if confirm_action "Remove ALL $IMAGE_NAME images?" "$force"; then
                 echo "$images" | xargs docker rmi -f
@@ -98,7 +98,7 @@ cleanup_images() {
         fi
     else
         # Remove only untagged/dangling images
-        local dangling=$(docker images -f "dangling=true" --format "{{.ID}}" 2>/dev/null || true)
+        local dangling; dangling=$(docker images -f "dangling=true" --format "{{.ID}}" 2>/dev/null || true)
         if [ -n "$dangling" ]; then
             if confirm_action "Remove dangling images?" "$force"; then
                 echo "$dangling" | xargs docker rmi -f
@@ -127,7 +127,7 @@ cleanup_volumes() {
         fi
     else
         # Remove only anonymous volumes
-        local anonymous=$(docker volume ls -f "dangling=true" -q 2>/dev/null || true)
+        local anonymous; anonymous=$(docker volume ls -f "dangling=true" -q 2>/dev/null || true)
         if [ -n "$anonymous" ]; then
             if confirm_action "Remove anonymous volumes?" "$force"; then
                 echo "$anonymous" | xargs docker volume rm
@@ -146,7 +146,7 @@ cleanup_networks() {
     print_info "Cleaning up networks..."
     
     # Remove unused networks
-    local unused=$(docker network ls --filter "dangling=true" -q 2>/dev/null || true)
+    local unused; unused=$(docker network ls --filter "dangling=true" -q 2>/dev/null || true)
     if [ -n "$unused" ]; then
         if confirm_action "Remove unused networks?" "$force"; then
             echo "$unused" | xargs docker network rm

@@ -48,7 +48,8 @@
       "mcp__task-master-ai__analyze_project_complexity",
       "mcp__task-master-ai__research",
       "Bash(chmod:*)",
-      "Bash(docker build:*)"
+      "Bash(docker build:*)",
+      "mcp__github__create_pull_request"
     ],
     "deny": []
   },

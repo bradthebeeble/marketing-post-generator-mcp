@@ -260,7 +260,7 @@ Enable monitoring profile:
 docker-compose -f docker-compose.prod.yml --profile monitoring up -d
 ```
 
-Access Prometheus at: http://localhost:9090
+Access Prometheus at: <http://localhost:9090>
 
 ## Production Deployment
 
@@ -403,7 +403,7 @@ docker-compose logs --no-color > deployment.log
 
 ### Network Security
 
-- **Isolated network**: Services communicate on dedicated bridge network
+- **Isolated network**: Services communicate on a dedicated bridge network
 - **Port exposure**: Only necessary ports are exposed to host
 - **CORS configuration**: Proper CORS headers for browser security
 

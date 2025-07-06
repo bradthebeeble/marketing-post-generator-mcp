@@ -34,9 +34,9 @@ print_error() {
     echo -e "${RED}❌ $1${NC}"
 }
 
-# Function to build TypeScript
+# Function to build TypeScript (optional - Docker handles this in multi-stage build)
 build_typescript() {
-    print_info "Building TypeScript..."
+    print_info "Building TypeScript locally..."
     if npm run build; then
         print_success "TypeScript build completed"
     else
@@ -118,8 +118,9 @@ main() {
     # Clean up any existing test containers
     docker rm -f "${IMAGE_NAME}-test" 2>/dev/null || true
     
-    # Build TypeScript first
-    build_typescript
+    # Note: Docker build handles TypeScript compilation in multi-stage build
+    # Uncomment the next line if you need local TypeScript artifacts
+    # build_typescript
     
     # Build Docker image based on target
     case "$BUILD_TARGET" in

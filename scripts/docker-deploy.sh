@@ -13,7 +13,6 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-IMAGE_NAME="marketing-post-generator-mcp"
 VERSION=${VERSION:-"latest"}
 ENVIRONMENT=${ENVIRONMENT:-"production"}
 COMPOSE_FILE=${COMPOSE_FILE:-"docker-compose.yml"}
@@ -175,7 +174,8 @@ verify_deployment() {
     
     # Test API endpoint if in remote mode
     if [ "$ENVIRONMENT" != "development" ]; then
-        local port=$(docker-compose -f "$COMPOSE_FILE" port marketing-post-generator 3000 2>/dev/null | cut -d: -f2)
+        local mapped; mapped=$(docker-compose -f "$COMPOSE_FILE" port marketing-post-generator 3000 2>/dev/null)
+        local port="${mapped##*:}"
         if [ -n "$port" ]; then
             print_info "Testing API endpoint on port $port..."
             if curl -f "http://localhost:$port/health" > /dev/null 2>&1; then
@@ -208,7 +208,8 @@ show_deployment_info() {
     echo ""
     
     print_info "Available Endpoints:"
-    local port=$(docker-compose -f "$COMPOSE_FILE" port marketing-post-generator 3000 2>/dev/null | cut -d: -f2)
+    local mapped; mapped=$(docker-compose -f "$COMPOSE_FILE" port marketing-post-generator 3000 2>/dev/null)
+    local port="${mapped##*:}"
     if [ -n "$port" ]; then
         echo "  Health Check: http://localhost:$port/health"
         echo "  MCP Endpoint: http://localhost:$port/mcp"

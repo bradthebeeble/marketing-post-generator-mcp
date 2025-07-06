@@ -615,16 +615,62 @@
         "id": 14,
         "title": "Post Narrative Generator Tool Implementation",
         "description": "Implement the tool for generating narratives and bullet points for upcoming posts based on the content plan.",
-        "details": "1. Create a tool definition for narrative generation\n2. Implement logic to read from the content plan\n3. Use Claude Code to generate detailed narratives and bullet points\n4. Store the narratives in the .postgen/narratives directory\n5. Implement options for different narrative styles and levels of detail\n\n```typescript\nimport { MCPTool } from '@modelcontextprotocol/sdk';\nimport { ClaudeService } from './services/claude-service';\nimport * as fs from 'fs/promises';\nimport * as path from 'path';\n\nexport const narrativeGeneratorTool: MCPTool = {\n  name: 'marketing_post_generator_mcp__generate_narrative',\n  description: 'Generate narratives and bullet points for upcoming posts',\n  parameters: {\n    postId: {\n      type: 'string',\n      description: 'ID of the post from the content plan',\n    },\n    style: {\n      type: 'string',\n      description: 'Style of the narrative',\n      enum: ['concise', 'detailed', 'storytelling'],\n      default: 'detailed',\n    },\n  },\n  handler: async ({ postId, style }, { claudeService }) => {\n    // Validate .postgen directory exists\n    const postgenDir = path.join(process.cwd(), '.postgen');\n    try {\n      await fs.access(postgenDir);\n    } catch (error) {\n      throw new Error('Please run the init prompt first');\n    }\n    \n    // Get the latest content plan\n    const contentPlan = await getLatestContentPlan(postgenDir);\n    if (!contentPlan) {\n      throw new Error('No content plan found. Please create a content plan first.');\n    }\n    \n    // Find the post in the content plan\n    const post = contentPlan.plan.find(p => p.id === postId);\n    if (!post) {\n      throw new Error(`Post with ID ${postId} not found in the content plan.`);\n    }\n    \n    // Get tone analysis for the domain\n    const toneAnalysis = await getExistingToneAnalysis(contentPlan.domain, postgenDir);\n    \n    // Generate narrative with Claude\n    const prompt = buildNarrativePrompt({\n      post,\n      style,\n      toneAnalysis,\n      domain: contentPlan.domain,\n    });\n    \n    const narrative = await claudeService.generateContent(prompt);\n    \n    // Parse the narrative into a structured format\n    const structuredNarrative = parseNarrative(narrative);\n    \n    // Save the narrative\n    const narrativePath = path.join(postgenDir, 'narratives', `${postId}-${Date.now()}.json`);\n    await fs.mkdir(path.dirname(narrativePath), { recursive: true });\n    \n    const result = {\n      postId,\n      title: post.title,\n      style,\n      narrative: structuredNarrative,\n      rawNarrative: narrative,\n      createdAt: new Date().toISOString(),\n    };\n    \n    await fs.writeFile(narrativePath, JSON.stringify(result, null, 2));\n    \n    return result;\n  },\n};\n\nfunction buildNarrativePrompt(options) {\n  // Build a prompt for narrative generation based on options\n  const stylePrompts = {\n    concise: 'Create a concise outline with key bullet points',\n    detailed: 'Create a detailed narrative with main sections and supporting points',\n    storytelling: 'Create a narrative that tells a compelling story around the topic',\n  };\n  \n  return `Based on the following post idea from the content plan for ${options.domain}:\\n\\nTitle: ${options.post.title}\\nTopic: ${options.post.topic}\\nKeywords: ${options.post.keywords.join(', ')}\\n\\n${stylePrompts[options.style]}\\n\\nUse this tone of voice: ${options.toneAnalysis}`;\n}\n\nfunction parseNarrative(rawNarrative) {\n  // Parse the raw narrative into a structured format\n  // This could extract sections, bullet points, etc.\n}\n\nasync function getLatestContentPlan(postgenDir) {\n  // Get the latest content plan\n}\n\nasync function getExistingToneAnalysis(domain, postgenDir) {\n  // Get existing tone analysis for the domain\n}\n```",
-        "testStrategy": "Test narrative generation with different styles. Test with different post types from the content plan. Verify narratives are correctly stored in the .postgen directory. Test error handling for missing content plans or invalid post IDs.",
-        "priority": "medium",
+        "status": "done",
         "dependencies": [
           3,
           4,
           13
         ],
-        "status": "pending",
-        "subtasks": []
+        "priority": "medium",
+        "details": "1. Create a tool definition for narrative generation\n2. Implement logic to read from the content plan\n3. Use Claude Code to generate detailed narratives and bullet points\n4. Store the narratives in the .postgen/narratives directory\n5. Implement options for different narrative styles and levels of detail\n\n## Implementation Plan\n\n### Phase 1: Foundation Setup\n- Set up basic tool structure and parameter definitions\n- Create utility functions for directory validation\n- Implement content plan retrieval logic\n- Set up error handling for missing prerequisites\n\n### Phase 2: Core Logic\n- Implement post lookup functionality\n- Create tone analysis retrieval mechanism\n- Design prompt building system for different narrative styles\n- Develop input validation and error handling\n\n### Phase 3: Narrative Generation Engine\n- Implement Claude service integration\n- Create prompt templates for different narrative styles\n- Build context-aware prompt construction\n- Develop parsing logic for structured narrative output\n\n### Phase 4: Storage & Response\n- Create directory structure for narratives\n- Implement file naming conventions and versioning\n- Design JSON structure for narrative storage\n- Build response formatting for tool output\n\n### Phase 5: Integration & Testing\n- Test with various post types and styles\n- Validate error handling for edge cases\n- Ensure proper integration with content plan\n- Verify file system operations\n\n```typescript\nimport { MCPTool } from '@modelcontextprotocol/sdk';\nimport { ClaudeService } from './services/claude-service';\nimport * as fs from 'fs/promises';\nimport * as path from 'path';\n\nexport const narrativeGeneratorTool: MCPTool = {\n  name: 'marketing_post_generator_mcp__generate_narrative',\n  description: 'Generate narratives and bullet points for upcoming posts',\n  parameters: {\n    postId: {\n      type: 'string',\n      description: 'ID of the post from the content plan',\n    },\n    style: {\n      type: 'string',\n      description: 'Style of the narrative',\n      enum: ['concise', 'detailed', 'storytelling'],\n      default: 'detailed',\n    },\n  },\n  handler: async ({ postId, style }, { claudeService }) => {\n    // Validate .postgen directory exists\n    const postgenDir = path.join(process.cwd(), '.postgen');\n    try {\n      await fs.access(postgenDir);\n    } catch (error) {\n      throw new Error('Please run the init prompt first');\n    }\n    \n    // Get the latest content plan\n    const contentPlan = await getLatestContentPlan(postgenDir);\n    if (!contentPlan) {\n      throw new Error('No content plan found. Please create a content plan first.');\n    }\n    \n    // Find the post in the content plan\n    const post = contentPlan.plan.find(p => p.id === postId);\n    if (!post) {\n      throw new Error(`Post with ID ${postId} not found in the content plan.`);\n    }\n    \n    // Get tone analysis for the domain\n    const toneAnalysis = await getExistingToneAnalysis(contentPlan.domain, postgenDir);\n    \n    // Generate narrative with Claude\n    const prompt = buildNarrativePrompt({\n      post,\n      style,\n      toneAnalysis,\n      domain: contentPlan.domain,\n    });\n    \n    const narrative = await claudeService.generateContent(prompt);\n    \n    // Parse the narrative into a structured format\n    const structuredNarrative = parseNarrative(narrative);\n    \n    // Save the narrative\n    const narrativePath = path.join(postgenDir, 'narratives', `${postId}-${Date.now()}.json`);\n    await fs.mkdir(path.dirname(narrativePath), { recursive: true });\n    \n    const result = {\n      postId,\n      title: post.title,\n      style,\n      narrative: structuredNarrative,\n      rawNarrative: narrative,\n      createdAt: new Date().toISOString(),\n    };\n    \n    await fs.writeFile(narrativePath, JSON.stringify(result, null, 2));\n    \n    return result;\n  },\n};\n\nfunction buildNarrativePrompt(options) {\n  // Build a prompt for narrative generation based on options\n  const stylePrompts = {\n    concise: 'Create a concise outline with key bullet points',\n    detailed: 'Create a detailed narrative with main sections and supporting points',\n    storytelling: 'Create a narrative that tells a compelling story around the topic',\n  };\n  \n  return `Based on the following post idea from the content plan for ${options.domain}:\\n\\nTitle: ${options.post.title}\\nTopic: ${options.post.topic}\\nKeywords: ${options.post.keywords.join(', ')}\\n\\n${stylePrompts[options.style]}\\n\\nUse this tone of voice: ${options.toneAnalysis}`;\n}\n\nfunction parseNarrative(rawNarrative) {\n  // Parse the raw narrative into a structured format\n  // This could extract sections, bullet points, etc.\n}\n\nasync function getLatestContentPlan(postgenDir) {\n  // Get the latest content plan\n}\n\nasync function getExistingToneAnalysis(domain, postgenDir) {\n  // Get existing tone analysis for the domain\n}\n```",
+        "testStrategy": "Test narrative generation with different styles. Test with different post types from the content plan. Verify narratives are correctly stored in the .postgen directory. Test error handling for missing content plans or invalid post IDs.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Foundation Setup",
+            "description": "Set up the basic structure for the narrative generator tool",
+            "status": "done",
+            "dependencies": [],
+            "details": "<info added on 2025-07-06T06:51:23.366Z>\nPhase 1 Foundation Setup has been completed for the Narrative Generator Tool implementation. The following components have been established:\n\n1. Created comprehensive NarrativeGeneratorTool class following established design patterns\n2. Defined all necessary interfaces:\n   - NarrativeGeneratorToolArgs\n   - ContentPlanPost\n   - ContentPlan\n   - ToneAnalysis\n   - StructuredNarrative\n   - NarrativeResult\n3. Implemented complete tool definition with proper parameter schema including:\n   - postId\n   - style\n   - updateExisting parameters\n4. Added the tool to exports in index.ts\n\nThe foundation is now ready for Phase 5 integration with the MCP server and testing.\n</info added on 2025-07-06T06:51:23.366Z>",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Core Logic",
+            "description": "Implement the core functionality for post lookup and context gathering",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Narrative Generation Engine",
+            "description": "Build the system for generating narratives using Claude",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Storage & Response",
+            "description": "Implement storage and response formatting for generated narratives",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Integration & Testing",
+            "description": "Test the narrative generator with various inputs and scenarios",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 13,
@@ -800,7 +846,7 @@
     ],
     "metadata": {
       "created": "2025-07-04T10:32:12.253Z",
-      "updated": "2025-07-06T06:07:44.372Z",
+      "updated": "2025-07-06T10:33:18.466Z",
       "description": "Tasks for master context"
     }
   }

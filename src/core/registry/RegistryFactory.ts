@@ -15,7 +15,7 @@ export const REGISTRY_TOKENS = {
   VERSION_MANAGER: 'VersionManager',
   DISCOVERY_SERVICE: 'DiscoveryService',
   REGISTRY_CONFIG: 'RegistryConfig',
-  REGISTRY_LOGGER: 'RegistryLogger'
+  REGISTRY_LOGGER: 'RegistryLogger',
 } as const;
 
 /**
@@ -33,7 +33,7 @@ export interface RegistryFactoryConfig {
  * Factory for creating and configuring registry services with dependency injection
  */
 export class RegistryFactory {
-  private container: DIContainer;
+  private readonly container: DIContainer;
   private initialized: boolean = false;
 
   constructor(container: DIContainer) {
@@ -148,7 +148,7 @@ export class RegistryFactory {
       maxRetries: 3,
       enableLogging: true,
       namePrefix: 'marketing_post_generator_mcp__',
-      ...partial
+      ...partial,
     };
   }
 
@@ -165,17 +165,14 @@ export class RegistryFactory {
       ),
       transports: [
         new winston.transports.Console({
-          format: winston.format.combine(
-            winston.format.colorize(),
-            winston.format.simple()
-          )
-        })
-      ]
+          format: winston.format.combine(winston.format.colorize(), winston.format.simple()),
+        }),
+      ],
     };
 
     return winston.createLogger({
       ...defaultOptions,
-      ...options
+      ...options,
     });
   }
 
@@ -243,7 +240,7 @@ export class RegistryFactory {
    */
   reset(): void {
     // Remove registry-related services from container
-    Object.values(REGISTRY_TOKENS).forEach(token => {
+    Object.values(REGISTRY_TOKENS).forEach((token) => {
       if (this.container.has(token)) {
         // Note: DIContainer doesn't have a remove method, so we'll just mark as uninitialized
         // In a real implementation, we might want to add a remove method to DIContainer
@@ -282,10 +279,10 @@ export class RegistryFactory {
     await factory.initialize({
       registryConfig: {
         enableLogging: false,
-        validateOnRegister: false
+        validateOnRegister: false,
       },
       enableValidation: false,
-      enableDiscovery: false
+      enableDiscovery: false,
     });
     return factory;
   }
@@ -318,7 +315,7 @@ export class RegistryFactory {
       // Example migration: add new fields or update structure
       return {
         ...entry,
-        updatedAt: new Date()
+        updatedAt: new Date(),
       };
     });
 

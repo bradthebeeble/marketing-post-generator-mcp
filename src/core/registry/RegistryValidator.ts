@@ -1,10 +1,5 @@
 import { Tool, Prompt } from '@modelcontextprotocol/sdk/types.js';
-import {
-  ToolRegistryEntry,
-  PromptRegistryEntry,
-  ValidationResult,
-  VersionInfo
-} from './types.js';
+import { ToolRegistryEntry, PromptRegistryEntry, ValidationResult, VersionInfo } from './types.js';
 
 /**
  * Validator for ensuring MCP specification compliance
@@ -59,7 +54,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -106,7 +101,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -123,9 +118,11 @@ export class RegistryValidator {
     } else {
       // Validate name format
       if (!this.TOOL_NAME_PATTERN.test(tool.name)) {
-        errors.push('Tool name must start with a letter and contain only letters, numbers, underscores, and hyphens');
+        errors.push(
+          'Tool name must start with a letter and contain only letters, numbers, underscores, and hyphens'
+        );
       }
-      
+
       if (tool.name.length > this.MAX_NAME_LENGTH) {
         errors.push(`Tool name must not exceed ${this.MAX_NAME_LENGTH} characters`);
       }
@@ -149,7 +146,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -166,9 +163,11 @@ export class RegistryValidator {
     } else {
       // Validate name format
       if (!this.PROMPT_NAME_PATTERN.test(prompt.name)) {
-        errors.push('Prompt name must start with a letter and contain only letters, numbers, underscores, and hyphens');
+        errors.push(
+          'Prompt name must start with a letter and contain only letters, numbers, underscores, and hyphens'
+        );
       }
-      
+
       if (prompt.name.length > this.MAX_NAME_LENGTH) {
         errors.push(`Prompt name must not exceed ${this.MAX_NAME_LENGTH} characters`);
       }
@@ -194,7 +193,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -229,7 +228,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -270,7 +269,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -339,7 +338,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -354,7 +353,7 @@ export class RegistryValidator {
     }
 
     // Validate required schema properties
-    this.REQUIRED_SCHEMA_PROPERTIES.forEach(prop => {
+    this.REQUIRED_SCHEMA_PROPERTIES.forEach((prop) => {
       if (!(prop in schema)) {
         errors.push(`Input schema must have '${prop}' property`);
       }
@@ -370,7 +369,7 @@ export class RegistryValidator {
       if (typeof schema.properties !== 'object') {
         errors.push('Schema properties must be an object');
       } else {
-        Object.keys(schema.properties).forEach(propName => {
+        Object.keys(schema.properties).forEach((propName) => {
           const prop = schema.properties[propName];
           if (typeof prop !== 'object' || !prop.type) {
             warnings.push(`Property '${propName}' should have a type specified`);
@@ -395,7 +394,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -429,7 +428,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -459,7 +458,7 @@ export class RegistryValidator {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 }

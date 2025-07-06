@@ -155,9 +155,7 @@ export class BlogPostGeneratorTool {
           finalKeywords = this.extractKeywordsFromNarrative(narrative);
         }
       } else if (!finalTitle || !finalTopic) {
-        throw new Error(
-          'Either narrativeId or both title and topic must be provided.'
-        );
+        throw new Error('Either narrativeId or both title and topic must be provided.');
       }
 
       // Get tone analysis for the domain
@@ -243,9 +241,7 @@ export class BlogPostGeneratorTool {
       const configData = await fs.readFile(configPath, 'utf-8');
       return JSON.parse(configData);
     } catch (error) {
-      throw new Error(
-        'Failed to load .postgen configuration. Please run the init tool first.'
-      );
+      throw new Error('Failed to load .postgen configuration. Please run the init tool first.');
     }
   }
 
@@ -402,7 +398,8 @@ export class BlogPostGeneratorTool {
 
     const response = await options.claudeService.generateContent(prompt, {
       maxTokens: Math.min(8192, Math.max(2048, options.wordCount * 2)),
-      temperature: options.style === 'storytelling' ? 0.7 : options.style === 'conversational' ? 0.6 : 0.5,
+      temperature:
+        options.style === 'storytelling' ? 0.7 : options.style === 'conversational' ? 0.6 : 0.5,
     });
 
     return response.content;
@@ -449,7 +446,8 @@ export class BlogPostGeneratorTool {
       },
     };
 
-    const guidelines = styleGuidelines[style as keyof typeof styleGuidelines] || styleGuidelines.informative;
+    const guidelines =
+      styleGuidelines[style as keyof typeof styleGuidelines] || styleGuidelines.informative;
 
     let prompt = `You are a professional content writer creating a complete blog post.
 

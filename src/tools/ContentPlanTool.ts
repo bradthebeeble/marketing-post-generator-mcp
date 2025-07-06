@@ -21,7 +21,14 @@ export interface ContentPlanPost {
   estimatedLength: string;
   priority: 'high' | 'medium' | 'low';
   targetAudience: string;
-  contentType: 'educational' | 'promotional' | 'thought-leadership' | 'case-study' | 'tutorial' | 'news' | 'opinion';
+  contentType:
+    | 'educational'
+    | 'promotional'
+    | 'thought-leadership'
+    | 'case-study'
+    | 'tutorial'
+    | 'news'
+    | 'opinion';
 }
 
 export interface ContentPlanResult {
@@ -101,7 +108,12 @@ export class ContentPlanTool {
     const { domain, timeframe = 'month', postCount = 8, updateExisting = false } = args;
 
     try {
-      this.logger.info('Starting content plan tool execution', { domain, timeframe, postCount, updateExisting });
+      this.logger.info('Starting content plan tool execution', {
+        domain,
+        timeframe,
+        postCount,
+        updateExisting,
+      });
 
       // Validate .postgen directory exists
       await this.validatePostgenDirectory();
@@ -109,17 +121,17 @@ export class ContentPlanTool {
       // Gather existing data
       const samples = await this.getExistingSamples(domain);
       const toneAnalysis = await this.getExistingToneAnalysis(domain);
-      
+
       // Check for existing content plan if updating
       let existingPlan: ContentPlanResult | null = null;
       if (updateExisting) {
         existingPlan = await this.getLatestContentPlan(domain);
       }
 
-      this.logger.info('Data gathering completed', { 
-        samplesCount: samples.length, 
+      this.logger.info('Data gathering completed', {
+        samplesCount: samples.length,
         hasToneAnalysis: !!toneAnalysis,
-        hasExistingPlan: !!existingPlan 
+        hasExistingPlan: !!existingPlan,
       });
 
       // Generate content plan with Claude
@@ -136,10 +148,10 @@ export class ContentPlanTool {
       // Save the content plan
       const planPath = await this.saveContentPlan(contentPlan, domain);
 
-      this.logger.info('Content plan tool execution completed successfully', { 
-        domain, 
+      this.logger.info('Content plan tool execution completed successfully', {
+        domain,
         postsGenerated: contentPlan.posts.length,
-        planPath 
+        planPath,
       });
 
       return this.formatResponse(contentPlan, planPath);
@@ -158,9 +170,11 @@ export class ContentPlanTool {
     const normalizedDomain = domain.replace(/^www\./, '').toLowerCase();
     return (filename: string) => {
       const normalizedFile = filename.toLowerCase();
-      return (normalizedFile.includes(normalizedDomain.replace(/\./g, '-')) || 
-              normalizedFile.includes(normalizedDomain)) && 
-             filename.endsWith('.json');
+      return (
+        (normalizedFile.includes(normalizedDomain.replace(/\./g, '-')) ||
+          normalizedFile.includes(normalizedDomain)) &&
+        filename.endsWith('.json')
+      );
     };
   }
 
@@ -188,27 +202,29 @@ export class ContentPlanTool {
   private async getExistingSamples(domain: string): Promise<ExistingSample[]> {
     try {
       const samplesDir = path.join(process.cwd(), '.postgen', 'samples');
-      
+
       // Look for domain-specific sample files
       const files = await fs.readdir(samplesDir);
       const domainMatcher = this.createDomainMatcher(domain);
       const domainFiles = files.filter(domainMatcher);
 
       const samples: ExistingSample[] = [];
-      
+
       for (const file of domainFiles) {
         try {
           const content = await fs.readFile(path.join(samplesDir, file), 'utf-8');
           const sampleData = JSON.parse(content);
-          
+
           // Extract posts from sample data structure
           if (sampleData.posts && Array.isArray(sampleData.posts)) {
-            samples.push(...sampleData.posts.map((post: any) => ({
-              title: post.title || 'Untitled',
-              content: post.content || '',
-              url: post.url || '',
-              categories: post.categories || [],
-            })));
+            samples.push(
+              ...sampleData.posts.map((post: any) => ({
+                title: post.title || 'Untitled',
+                content: post.content || '',
+                url: post.url || '',
+                categories: post.categories || [],
+              }))
+            );
           }
         } catch (error) {
           this.logger.warn('Failed to parse sample file', { file, error });
@@ -227,7 +243,7 @@ export class ContentPlanTool {
     try {
       const toneAnalysisDir = path.join(process.cwd(), '.postgen', 'analysis', 'tone-analysis');
       const files = await fs.readdir(toneAnalysisDir);
-      
+
       // Look for domain-related tone analysis files
       const domainFiles = [];
       for (const file of files) {
@@ -257,7 +273,7 @@ export class ContentPlanTool {
         }
         const content = await fs.readFile(path.join(toneAnalysisDir, latestFile.file), 'utf-8');
         const toneData = JSON.parse(content);
-        
+
         return {
           formality: toneData.toneAnalysis.formality || 'Not specified',
           emotion: toneData.toneAnalysis.emotion || 'Not specified',
@@ -277,7 +293,7 @@ export class ContentPlanTool {
     try {
       const contentPlansDir = path.join(process.cwd(), '.postgen', 'content-plans');
       const files = await fs.readdir(contentPlansDir);
-      
+
       // Look for domain-specific content plan files
       const domainMatcher = this.createDomainMatcher(domain);
       const domainFiles = files.filter(domainMatcher);
@@ -316,9 +332,9 @@ export class ContentPlanTool {
   }): Promise<ContentPlanResult> {
     const prompt = this.buildContentPlanPrompt(options);
 
-    this.logger.info('Generating content plan with Claude', { 
-      domain: options.domain, 
-      promptLength: prompt.length 
+    this.logger.info('Generating content plan with Claude', {
+      domain: options.domain,
+      promptLength: prompt.length,
     });
 
     const response = await options.claudeService.generateContent(prompt, {
@@ -366,7 +382,10 @@ export class ContentPlanTool {
 ## Existing Content Analysis
 
 The domain currently has ${samples.length} analyzed posts with the following themes:
-${samples.slice(0, 5).map(sample => `- "${sample.title}": ${sample.content.slice(0, 100)}...`).join('\n')}`;
+${samples
+  .slice(0, 5)
+  .map((sample) => `- "${sample.title}": ${sample.content.slice(0, 100)}...`)
+  .join('\n')}`;
     }
 
     // Add tone analysis if available
@@ -390,7 +409,10 @@ Based on existing content analysis:
 
 This is an update to an existing content plan from ${new Date(existingPlan.timestamp).toLocaleDateString()}.
 Previous plan included ${existingPlan.posts.length} posts covering these topics:
-${existingPlan.posts.slice(0, 3).map(post => `- ${post.title} (${post.category})`).join('\n')}
+${existingPlan.posts
+  .slice(0, 3)
+  .map((post) => `- ${post.title} (${post.category})`)
+  .join('\n')}
 
 Please consider these previous plans while creating new content that builds upon or complements the existing strategy.`;
     }
@@ -452,11 +474,14 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
     return prompt;
   }
 
-  private parseContentPlanResponse(response: string, options: {
-    domain: string;
-    timeframe: 'week' | 'month' | 'quarter';
-    postCount: number;
-  }): {
+  private parseContentPlanResponse(
+    response: string,
+    options: {
+      domain: string;
+      timeframe: 'week' | 'month' | 'quarter';
+      postCount: number;
+    }
+  ): {
     posts: ContentPlanPost[];
     contentGaps: string[];
     trendingTopics: string[];
@@ -465,7 +490,8 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
   } {
     try {
       // Extract JSON from response
-      const jsonMatch = response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        response.match(/```json\s*([\s\S]*?)\s*```/) || response.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No JSON found in content plan response');
       }
@@ -486,9 +512,16 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
         priority: ['high', 'medium', 'low'].includes(post.priority) ? post.priority : 'medium',
         targetAudience: post.targetAudience || 'General audience',
         contentType: [
-          'educational', 'promotional', 'thought-leadership', 'case-study', 
-          'tutorial', 'news', 'opinion'
-        ].includes(post.contentType) ? post.contentType : 'educational',
+          'educational',
+          'promotional',
+          'thought-leadership',
+          'case-study',
+          'tutorial',
+          'news',
+          'opinion',
+        ].includes(post.contentType)
+          ? post.contentType
+          : 'educational',
       }));
 
       return {
@@ -500,7 +533,7 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
       };
     } catch (error) {
       this.logger.error('Failed to parse content plan response', { error });
-      
+
       // Fallback: Create a basic plan
       return {
         posts: Array.from({ length: options.postCount }, (_, i) => ({
@@ -525,14 +558,18 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
     const timestamp = Date.now();
     const cleanDomain = domain.replace(/\./g, '-');
     const planPath = path.join(
-      process.cwd(), 
-      '.postgen', 
-      'content-plans', 
+      process.cwd(),
+      '.postgen',
+      'content-plans',
       `${cleanDomain}-${contentPlan.timeframe}-${timestamp}.json`
     );
 
     await fs.writeFile(planPath, JSON.stringify(contentPlan, null, 2));
-    this.logger.info('Content plan saved', { planPath, domain, postsCount: contentPlan.posts.length });
+    this.logger.info('Content plan saved', {
+      planPath,
+      domain,
+      postsCount: contentPlan.posts.length,
+    });
 
     return planPath;
   }
@@ -548,7 +585,9 @@ ${contentPlan.updatedFrom ? `- **Updated From**: ${new Date(contentPlan.updatedF
 
 ## Planned Content
 
-${contentPlan.posts.map((post, index) => `### ${index + 1}. ${post.title}
+${contentPlan.posts
+  .map(
+    (post, index) => `### ${index + 1}. ${post.title}
 
 **Category**: ${post.category} | **Priority**: ${post.priority} | **Type**: ${post.contentType}
 **Length**: ${post.estimatedLength}
@@ -558,18 +597,20 @@ ${post.description}
 
 **Keywords**: ${post.keywords.join(', ')}
 
----`).join('\n\n')}
+---`
+  )
+  .join('\n\n')}
 
 ## Content Strategy Analysis
 
 ### Identified Content Gaps
-${contentPlan.contentGaps.map(gap => `- ${gap}`).join('\n')}
+${contentPlan.contentGaps.map((gap) => `- ${gap}`).join('\n')}
 
 ### Trending Topics to Consider
-${contentPlan.trendingTopics.map(topic => `- ${topic}`).join('\n')}
+${contentPlan.trendingTopics.map((topic) => `- ${topic}`).join('\n')}
 
 ### Strategic Recommendations
-${contentPlan.recommendations.map(rec => `- ${rec}`).join('\n')}
+${contentPlan.recommendations.map((rec) => `- ${rec}`).join('\n')}
 
 ## Execution Strategy
 

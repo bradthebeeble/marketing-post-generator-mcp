@@ -8,19 +8,63 @@ A powerful Model Context Protocol (MCP) server that provides AI-powered content 
 
 ## 🚀 Quick Start as MCP Server
 
-### Step 1: Install the Server
+### Option 1: Using npx (Recommended - No Installation Required)
+
+Configure your MCP client to use npx for automatic package management:
+
+#### Claude Code Configuration with npx
+
+Edit your Claude Code settings file (`~/.config/claude-code/settings.json` or equivalent):
+
+```json
+{
+  "mcpServers": {
+    "marketing-post-generator": {
+      "command": "npx",
+      "args": ["marketing-post-generator-mcp"],
+      "env": {
+        "CLAUDE_API_KEY": "your_claude_api_key_here",
+        "MCP_MODE": "local"
+      }
+    }
+  }
+}
+```
+
+#### Generic MCP Client Configuration with npx
+
+```json
+{
+  "servers": {
+    "marketing-post-generator": {
+      "command": ["npx", "marketing-post-generator-mcp"],
+      "env": {
+        "CLAUDE_API_KEY": "your_claude_api_key_here"
+      }
+    }
+  }
+}
+```
+
+**Benefits of npx approach:**
+- ✨ No global installation needed
+- 🔄 Always uses the latest version
+- 🎯 Version pinning available (`npx marketing-post-generator-mcp@1.0.0`)
+- 🧹 Keeps your system clean
+
+### Option 2: Traditional Installation
+
+#### Step 1: Install the Server
 
 ```bash
-# Global installation (recommended for MCP clients)
+# Global installation (for persistent usage)
 npm install -g marketing-post-generator-mcp
 
 # Or local installation
 npm install marketing-post-generator-mcp
 ```
 
-### Step 2: Configure Your MCP Client
-
-Add the server to your MCP client configuration:
+#### Step 2: Configure Your MCP Client
 
 #### Claude Code Configuration
 
@@ -502,9 +546,11 @@ docker run -d \
 Error: MCP server 'marketing-post-generator' not found
 ```
 **Solutions:**
-1. Verify installation: `npm list -g marketing-post-generator-mcp`
-2. Check PATH: `which marketing-post-generator-mcp`
-3. Reinstall: `npm install -g marketing-post-generator-mcp`
+1. If using npx: Ensure you have Node.js 18+ and npm installed
+2. If using global install: `npm list -g marketing-post-generator-mcp`
+3. Check PATH: `which marketing-post-generator-mcp`
+4. Try npx instead: `npx marketing-post-generator-mcp`
+5. Reinstall: `npm install -g marketing-post-generator-mcp`
 
 #### Authentication Errors
 ```
@@ -549,8 +595,14 @@ Enable debug logging:
 ### Test Server Manually
 
 ```bash
-# Test server directly
+# Test server directly (installed version)
 echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | marketing-post-generator-mcp
+
+# Test server with npx
+echo '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' | npx marketing-post-generator-mcp
+
+# Test with environment variables
+CLAUDE_API_KEY=your_key npx marketing-post-generator-mcp
 
 # Expected response should list available tools
 ```

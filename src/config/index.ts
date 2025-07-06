@@ -229,9 +229,7 @@ export function validateConfig(config: ServerConfig): void {
     ) {
       throw new Error('Error handling excludeStackTraceForCodes must be an array');
     }
-    if (
-      config.errorHandling.excludeStackTraceForCodes?.some((code) => typeof code !== 'string')
-    ) {
+    if (config.errorHandling.excludeStackTraceForCodes?.some((code) => typeof code !== 'string')) {
       throw new Error('Error handling excludeStackTraceForCodes must be an array of strings');
     }
   }

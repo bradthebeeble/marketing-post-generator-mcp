@@ -38,7 +38,7 @@ export interface ToolRegistryEntry extends BaseRegistryEntry {
 }
 
 /**
- * Prompt registry entry  
+ * Prompt registry entry
  */
 export interface PromptRegistryEntry extends BaseRegistryEntry {
   type: 'prompt';
@@ -137,7 +137,7 @@ export interface ExecutionContext {
 /**
  * Registry events for monitoring and logging
  */
-export type RegistryEvent = 
+export type RegistryEvent =
   | { type: 'tool_registered'; entry: ToolRegistryEntry }
   | { type: 'prompt_registered'; entry: PromptRegistryEntry }
   | { type: 'tool_executed'; name: string; context: ExecutionContext }

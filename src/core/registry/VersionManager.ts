@@ -3,15 +3,19 @@ import {
   CompatibilityResult,
   RegistryEntry,
   VersionError,
-  RegistryEvent
+  RegistryEvent,
 } from './types.js';
 
 /**
  * Manages versioning for registry entries with semantic versioning support
  */
 export class VersionManager {
-  private migrationHandlers: Map<string, (entry: RegistryEntry) => Promise<RegistryEntry>> = new Map();
-  private compatibilityRules: Map<string, (v1: VersionInfo, v2: VersionInfo) => boolean> = new Map();
+  private readonly migrationHandlers: Map<
+    string,
+    (entry: RegistryEntry) => Promise<RegistryEntry>
+  > = new Map();
+  private readonly compatibilityRules: Map<string, (v1: VersionInfo, v2: VersionInfo) => boolean> =
+    new Map();
 
   constructor() {
     // Set up default compatibility rules
@@ -26,19 +30,21 @@ export class VersionManager {
     const match = versionString.match(versionPattern);
 
     if (!match) {
-      throw new VersionError(`Invalid version format: ${versionString}. Expected format: x.y.z or x.y.z-prerelease`);
+      throw new VersionError(
+        `Invalid version format: ${versionString}. Expected format: x.y.z or x.y.z-prerelease`
+      );
     }
 
     const result: VersionInfo = {
       major: parseInt(match[1], 10),
       minor: parseInt(match[2], 10),
-      patch: parseInt(match[3], 10)
+      patch: parseInt(match[3], 10),
     };
-    
+
     if (match[4]) {
       result.prerelease = match[4];
     }
-    
+
     return result;
   }
 
@@ -102,7 +108,7 @@ export class VersionManager {
         major: parseInt(match[2], 10),
         minor: parseInt(match[3], 10),
         patch: parseInt(match[4], 10),
-        prerelease: match[5] || undefined
+        prerelease: match[5] || undefined,
       };
 
       switch (operator) {
@@ -129,7 +135,7 @@ export class VersionManager {
       compatible,
       requiredVersion: required,
       currentVersion: current,
-      migrationRequired
+      migrationRequired,
     };
 
     if (migrationRequired) {
@@ -170,7 +176,9 @@ export class VersionManager {
 
       case 'prerelease':
         if (!prereleaseIdentifier) {
-          throw new VersionError('Prerelease identifier is required for prerelease version increment');
+          throw new VersionError(
+            'Prerelease identifier is required for prerelease version increment'
+          );
         }
         newVersion.prerelease = prereleaseIdentifier;
         break;
@@ -197,10 +205,7 @@ export class VersionManager {
   /**
    * Execute migration for a registry entry
    */
-  async migrateEntry(
-    entry: RegistryEntry,
-    targetVersion: VersionInfo
-  ): Promise<RegistryEntry> {
+  async migrateEntry(entry: RegistryEntry, targetVersion: VersionInfo): Promise<RegistryEntry> {
     const currentVersionString = this.formatVersion(entry.version);
     const targetVersionString = this.formatVersion(targetVersion);
     const migrationKey = `${currentVersionString}->${targetVersionString}`;
@@ -216,7 +221,9 @@ export class VersionManager {
       migratedEntry.updatedAt = new Date();
       return migratedEntry;
     } catch (error) {
-      throw new VersionError(`Migration failed from ${currentVersionString} to ${targetVersionString}: ${error}`);
+      throw new VersionError(
+        `Migration failed from ${currentVersionString} to ${targetVersionString}: ${error}`
+      );
     }
   }
 
@@ -258,7 +265,7 @@ export class VersionManager {
    * Filter versions by compatibility with a base version
    */
   getCompatibleVersions(baseVersion: VersionInfo, versions: VersionInfo[]): VersionInfo[] {
-    return versions.filter(version => this.isCompatible(version, baseVersion));
+    return versions.filter((version) => this.isCompatible(version, baseVersion));
   }
 
   /**
@@ -310,9 +317,11 @@ export class VersionManager {
   }
 
   private isCompatiblePatch(version: VersionInfo, required: VersionInfo): boolean {
-    return version.major === required.major &&
-           version.minor === required.minor &&
-           version.patch >= required.patch;
+    return (
+      version.major === required.major &&
+      version.minor === required.minor &&
+      version.patch >= required.patch
+    );
   }
 
   private isCompatibleMinor(version: VersionInfo, required: VersionInfo): boolean {
@@ -338,8 +347,10 @@ export class VersionManager {
     const requiredVersionString = this.formatVersion(required);
     const migrationKey = `${currentVersionString}->${requiredVersionString}`;
 
-    return this.migrationHandlers.has(migrationKey) ||
-           (current.major === required.major && this.compareVersions(current, required) < 0);
+    return (
+      this.migrationHandlers.has(migrationKey) ||
+      (current.major === required.major && this.compareVersions(current, required) < 0)
+    );
   }
 
   private generateMigrationPath(current: VersionInfo, target: VersionInfo): string[] {
@@ -352,7 +363,9 @@ export class VersionManager {
       path.push(`${currentVersionString}->${targetVersionString}`);
     } else {
       // Multi-step migration would require more complex logic
-      path.push(`Complex migration required from ${currentVersionString} to ${targetVersionString}`);
+      path.push(
+        `Complex migration required from ${currentVersionString} to ${targetVersionString}`
+      );
     }
 
     return path;

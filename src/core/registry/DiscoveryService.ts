@@ -4,7 +4,7 @@ import {
   RegistryEntry,
   ToolRegistryEntry,
   PromptRegistryEntry,
-  VersionInfo
+  VersionInfo,
 } from './types.js';
 import { VersionManager } from './VersionManager.js';
 
@@ -42,7 +42,7 @@ export interface DiscoveryResult {
  * Service for discovering and exploring available tools and prompts
  */
 export class DiscoveryService {
-  private versionManager: VersionManager;
+  private readonly versionManager: VersionManager;
 
   constructor(versionManager?: VersionManager) {
     this.versionManager = versionManager || new VersionManager();
@@ -57,7 +57,7 @@ export class DiscoveryService {
     query: DiscoveryQuery = {}
   ): DiscoveryResult {
     // Collect all entries based on type filter
-    let allEntries: RegistryEntry[] = [];
+    const allEntries: RegistryEntry[] = [];
 
     if (query.type === 'tool' || query.type === undefined || query.type === 'all') {
       allEntries.push(...Array.from(toolEntries.values()));
@@ -95,8 +95,8 @@ export class DiscoveryService {
         total,
         limit,
         offset,
-        hasMore
-      }
+        hasMore,
+      },
     };
   }
 
@@ -111,7 +111,7 @@ export class DiscoveryService {
   ): DiscoveryResult {
     return this.discover(toolEntries, promptEntries, {
       ...options,
-      searchText: searchText.toLowerCase()
+      searchText: searchText.toLowerCase(),
     });
   }
 
@@ -126,7 +126,7 @@ export class DiscoveryService {
   ): DiscoveryResult {
     return this.discover(toolEntries, promptEntries, {
       ...options,
-      tags
+      tags,
     });
   }
 
@@ -141,7 +141,7 @@ export class DiscoveryService {
   ): DiscoveryResult {
     return this.discover(toolEntries, promptEntries, {
       ...options,
-      author
+      author,
     });
   }
 
@@ -157,7 +157,7 @@ export class DiscoveryService {
     const versionString = this.versionManager.formatVersion(targetVersion);
     return this.discover(toolEntries, promptEntries, {
       ...options,
-      versionRange: `^${versionString}`
+      versionRange: `^${versionString}`,
     });
   }
 
@@ -175,18 +175,18 @@ export class DiscoveryService {
 
     const allEntries: RegistryEntry[] = [
       ...Array.from(toolEntries.values()),
-      ...Array.from(promptEntries.values())
+      ...Array.from(promptEntries.values()),
     ];
 
-    const recentEntries = allEntries.filter(entry => 
-      entry.createdAt >= cutoffDate || entry.updatedAt >= cutoffDate
+    const recentEntries = allEntries.filter(
+      (entry) => entry.createdAt >= cutoffDate || entry.updatedAt >= cutoffDate
     );
 
     // Convert to map format for discovery method
     const recentToolEntries = new Map<string, ToolRegistryEntry>();
     const recentPromptEntries = new Map<string, PromptRegistryEntry>();
 
-    recentEntries.forEach(entry => {
+    recentEntries.forEach((entry) => {
       if (entry.type === 'tool') {
         recentToolEntries.set(entry.name, entry as ToolRegistryEntry);
       } else {
@@ -197,7 +197,7 @@ export class DiscoveryService {
     return this.discover(recentToolEntries, recentPromptEntries, {
       ...options,
       sortBy: 'updated',
-      sortOrder: 'desc'
+      sortOrder: 'desc',
     });
   }
 
@@ -211,7 +211,7 @@ export class DiscoveryService {
   ): DiscoveryResult {
     return this.discover(toolEntries, promptEntries, {
       ...options,
-      deprecated: true
+      deprecated: true,
     });
   }
 
@@ -225,13 +225,13 @@ export class DiscoveryService {
     const categories = new Set<string>();
 
     // Collect tags from tools
-    toolEntries.forEach(tool => {
-      tool.tags?.forEach(tag => categories.add(tag));
+    toolEntries.forEach((tool) => {
+      tool.tags?.forEach((tag) => categories.add(tag));
     });
 
     // Collect tags from prompts
-    promptEntries.forEach(prompt => {
-      prompt.tags?.forEach(tag => categories.add(tag));
+    promptEntries.forEach((prompt) => {
+      prompt.tags?.forEach((tag) => categories.add(tag));
     });
 
     return Array.from(categories).sort();
@@ -255,18 +255,18 @@ export class DiscoveryService {
   } {
     const allEntries: RegistryEntry[] = [
       ...Array.from(toolEntries.values()),
-      ...Array.from(promptEntries.values())
+      ...Array.from(promptEntries.values()),
     ];
 
     const authors = new Set<string>();
     const categories = new Set<string>();
     let deprecatedCount = 0;
-    let totalVersion = { major: 0, minor: 0, patch: 0 };
+    const totalVersion = { major: 0, minor: 0, patch: 0 };
     let latestVersion = { major: 0, minor: 0, patch: 0 };
 
-    allEntries.forEach(entry => {
+    allEntries.forEach((entry) => {
       if (entry.author) authors.add(entry.author);
-      entry.tags?.forEach(tag => categories.add(tag));
+      entry.tags?.forEach((tag) => categories.add(tag));
       if (entry.deprecated) deprecatedCount++;
 
       totalVersion.major += entry.version.major;
@@ -282,7 +282,7 @@ export class DiscoveryService {
     const averageVersion = {
       major: Math.round(totalVersion.major / count),
       minor: Math.round(totalVersion.minor / count),
-      patch: Math.round(totalVersion.patch / count)
+      patch: Math.round(totalVersion.patch / count),
     };
 
     return {
@@ -293,14 +293,14 @@ export class DiscoveryService {
       categories: categories.size,
       authors: authors.size,
       averageVersion: this.versionManager.formatVersion(averageVersion),
-      latestVersion: this.versionManager.formatVersion(latestVersion)
+      latestVersion: this.versionManager.formatVersion(latestVersion),
     };
   }
 
   // Private helper methods
 
   private applyFilters(entries: RegistryEntry[], query: DiscoveryQuery): RegistryEntry[] {
-    return entries.filter(entry => {
+    return entries.filter((entry) => {
       // Type filter
       if (query.type && query.type !== 'all' && entry.type !== query.type) {
         return false;
@@ -309,7 +309,7 @@ export class DiscoveryService {
       // Tags filter
       if (query.tags && query.tags.length > 0) {
         const entryTags = entry.tags || [];
-        const hasMatchingTag = query.tags.some(tag => entryTags.includes(tag));
+        const hasMatchingTag = query.tags.some((tag) => entryTags.includes(tag));
         if (!hasMatchingTag) {
           return false;
         }
@@ -341,8 +341,9 @@ export class DiscoveryService {
         const searchText = query.searchText.toLowerCase();
         const matchesName = entry.name.toLowerCase().includes(searchText);
         const matchesDescription = entry.description.toLowerCase().includes(searchText);
-        const matchesTags = entry.tags?.some(tag => tag.toLowerCase().includes(searchText)) || false;
-        
+        const matchesTags =
+          entry.tags?.some((tag) => tag.toLowerCase().includes(searchText)) || false;
+
         if (!matchesName && !matchesDescription && !matchesTags) {
           return false;
         }
@@ -381,14 +382,14 @@ export class DiscoveryService {
   }
 
   private convertToDiscoveryEntries(entries: RegistryEntry[]): DiscoveryEntry[] {
-    return entries.map(entry => {
+    return entries.map((entry) => {
       const discoveryEntry: DiscoveryEntry = {
         name: entry.name,
         type: entry.type,
         description: entry.description,
         version: this.versionManager.formatVersion(entry.version),
         deprecated: entry.deprecated || false,
-        tags: entry.tags || []
+        tags: entry.tags || [],
       };
 
       if (entry.type === 'tool') {
@@ -408,14 +409,14 @@ export class DiscoveryService {
   ): DiscoveryMetadata {
     const allEntries: RegistryEntry[] = [
       ...Array.from(toolEntries.values()),
-      ...Array.from(promptEntries.values())
+      ...Array.from(promptEntries.values()),
     ];
 
     const categories = new Set<string>();
     let latestVersion = { major: 0, minor: 0, patch: 0 };
 
-    allEntries.forEach(entry => {
-      entry.tags?.forEach(tag => categories.add(tag));
+    allEntries.forEach((entry) => {
+      entry.tags?.forEach((tag) => categories.add(tag));
       if (this.versionManager.compareVersions(entry.version, latestVersion) > 0) {
         latestVersion = entry.version;
       }
@@ -434,8 +435,8 @@ export class DiscoveryService {
         'search',
         'filtering',
         'pagination',
-        'sorting'
-      ]
+        'sorting',
+      ],
     };
   }
 }

@@ -21,7 +21,14 @@ export interface ContentPlanPost {
   estimatedLength: string;
   priority: 'high' | 'medium' | 'low';
   targetAudience: string;
-  contentType: 'educational' | 'promotional' | 'thought-leadership' | 'case-study' | 'tutorial' | 'news' | 'opinion';
+  contentType:
+    | 'educational'
+    | 'promotional'
+    | 'thought-leadership'
+    | 'case-study'
+    | 'tutorial'
+    | 'news'
+    | 'opinion';
 }
 
 export interface ContentPlan {
@@ -106,7 +113,11 @@ export class NarrativeGeneratorTool {
     const { postId, style = 'detailed', updateExisting = false } = args;
 
     try {
-      this.logger.info('Starting narrative generation tool execution', { postId, style, updateExisting });
+      this.logger.info('Starting narrative generation tool execution', {
+        postId,
+        style,
+        updateExisting,
+      });
 
       // Validate .postgen directory exists
       await this.validatePostgenDirectory();
@@ -123,23 +134,27 @@ export class NarrativeGeneratorTool {
       // Get the latest content plan
       const contentPlan = await this.getLatestContentPlan();
       if (!contentPlan) {
-        throw new Error('No content plan found. Please create a content plan first using the content_plan tool.');
+        throw new Error(
+          'No content plan found. Please create a content plan first using the content_plan tool.'
+        );
       }
 
       // Find the post in the content plan
-      const post = contentPlan.plan.find(p => p.id === postId);
+      const post = contentPlan.plan.find((p) => p.id === postId);
       if (!post) {
-        throw new Error(`Post with ID "${postId}" not found in the content plan. Available post IDs: ${contentPlan.plan.map(p => p.id).join(', ')}`);
+        throw new Error(
+          `Post with ID "${postId}" not found in the content plan. Available post IDs: ${contentPlan.plan.map((p) => p.id).join(', ')}`
+        );
       }
 
       // Get tone analysis for the domain
       const toneAnalysis = await this.getExistingToneAnalysis(contentPlan.domain);
 
-      this.logger.info('Data gathering completed', { 
-        postId, 
+      this.logger.info('Data gathering completed', {
+        postId,
         postTitle: post.title,
         domain: contentPlan.domain,
-        hasToneAnalysis: !!toneAnalysis 
+        hasToneAnalysis: !!toneAnalysis,
       });
 
       // Generate narrative with Claude
@@ -170,11 +185,11 @@ export class NarrativeGeneratorTool {
       // Save the narrative
       const narrativePath = await this.saveNarrative(result);
 
-      this.logger.info('Narrative generation tool execution completed successfully', { 
-        postId, 
+      this.logger.info('Narrative generation tool execution completed successfully', {
+        postId,
         style,
         wordCount: structuredNarrative.wordCount,
-        narrativePath 
+        narrativePath,
       });
 
       return this.formatResponse(result);
@@ -211,16 +226,18 @@ export class NarrativeGeneratorTool {
     }
   }
 
-  private async checkExistingNarrative(postId: string, style: string): Promise<NarrativeResult | null> {
+  private async checkExistingNarrative(
+    postId: string,
+    style: string
+  ): Promise<NarrativeResult | null> {
     try {
       const narrativesDir = path.join(process.cwd(), '.postgen', 'narratives');
       const files = await fs.readdir(narrativesDir);
-      
+
       // Look for existing narrative files for this post and style
-      const narrativeFiles = files.filter(file => 
-        file.startsWith(`${postId}-`) && 
-        file.includes(`-${style}-`) && 
-        file.endsWith('.json')
+      const narrativeFiles = files.filter(
+        (file) =>
+          file.startsWith(`${postId}-`) && file.includes(`-${style}-`) && file.endsWith('.json')
       );
 
       if (narrativeFiles.length > 0) {
@@ -232,7 +249,7 @@ export class NarrativeGeneratorTool {
           })
         );
         const latestFile = filesWithStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())[0];
-        
+
         if (latestFile) {
           const content = await fs.readFile(path.join(narrativesDir, latestFile.file), 'utf-8');
           return JSON.parse(content) as NarrativeResult;
@@ -250,10 +267,10 @@ export class NarrativeGeneratorTool {
     try {
       const contentPlansDir = path.join(process.cwd(), '.postgen', 'content-plans');
       const files = await fs.readdir(contentPlansDir);
-      
+
       // Get the most recent content plan file
-      const jsonFiles = files.filter(file => file.endsWith('.json'));
-      
+      const jsonFiles = files.filter((file) => file.endsWith('.json'));
+
       if (jsonFiles.length > 0) {
         const filesWithStats = await Promise.all(
           jsonFiles.map(async (file) => {
@@ -262,11 +279,11 @@ export class NarrativeGeneratorTool {
           })
         );
         const latestFile = filesWithStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())[0];
-        
+
         if (latestFile) {
           const content = await fs.readFile(path.join(contentPlansDir, latestFile.file), 'utf-8');
           const contentPlan = JSON.parse(content);
-          
+
           // Transform to expected format if needed
           return {
             domain: contentPlan.domain,
@@ -298,16 +315,16 @@ export class NarrativeGeneratorTool {
     try {
       const toneAnalysisDir = path.join(process.cwd(), '.postgen', 'analysis', 'tone-analysis');
       const files = await fs.readdir(toneAnalysisDir);
-      
+
       // Look for domain-related tone analysis files
       const domainMatcher = this.createDomainMatcher(domain);
       const domainFiles = [];
-      
+
       for (const file of files) {
         try {
           const content = await fs.readFile(path.join(toneAnalysisDir, file), 'utf-8');
           const toneData = JSON.parse(content);
-          
+
           if (toneData.source && domainMatcher(file)) {
             domainFiles.push(file);
           }
@@ -325,11 +342,11 @@ export class NarrativeGeneratorTool {
           })
         );
         const latestFile = filesWithStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())[0];
-        
+
         if (latestFile) {
           const content = await fs.readFile(path.join(toneAnalysisDir, latestFile.file), 'utf-8');
           const toneData = JSON.parse(content);
-          
+
           return {
             formality: toneData.toneAnalysis.formality || 'Not specified',
             emotion: toneData.toneAnalysis.emotion || 'Not specified',
@@ -353,9 +370,11 @@ export class NarrativeGeneratorTool {
     const normalizedDomain = domain.replace(/^www\./, '').toLowerCase();
     return (filename: string) => {
       const normalizedFile = filename.toLowerCase();
-      return (normalizedFile.includes(normalizedDomain.replace(/\./g, '-')) || 
-              normalizedFile.includes(normalizedDomain)) && 
-             filename.endsWith('.json');
+      return (
+        (normalizedFile.includes(normalizedDomain.replace(/\./g, '-')) ||
+          normalizedFile.includes(normalizedDomain)) &&
+        filename.endsWith('.json')
+      );
     };
   }
 
@@ -368,14 +387,15 @@ export class NarrativeGeneratorTool {
   }): Promise<{ rawNarrative: string; sourceContentPlan: string }> {
     const prompt = this.buildNarrativePrompt(options);
 
-    this.logger.info('Generating narrative with Claude', { 
+    this.logger.info('Generating narrative with Claude', {
       postId: options.post.id,
       style: options.style,
-      promptLength: prompt.length 
+      promptLength: prompt.length,
     });
 
     const response = await options.claudeService.generateContent(prompt, {
-      maxTokens: options.style === 'storytelling' ? 4096 : options.style === 'detailed' ? 2048 : 1024,
+      maxTokens:
+        options.style === 'storytelling' ? 4096 : options.style === 'detailed' ? 2048 : 1024,
       temperature: options.style === 'storytelling' ? 0.7 : 0.5,
     });
 
@@ -402,13 +422,15 @@ export class NarrativeGeneratorTool {
       },
       detailed: {
         wordCount: '800-1500 words',
-        approach: 'Create a comprehensive narrative with detailed sections and supporting information',
+        approach:
+          'Create a comprehensive narrative with detailed sections and supporting information',
         structure: 'Introduction, 4-6 main sections with subsections, detailed conclusion',
       },
       storytelling: {
         wordCount: '1000+ words',
         approach: 'Create an engaging narrative that tells a compelling story around the topic',
-        structure: 'Hook introduction, story development with examples and anecdotes, emotional conclusion',
+        structure:
+          'Hook introduction, story development with examples and anecdotes, emotional conclusion',
       },
     };
 
@@ -495,23 +517,28 @@ Please respond with a JSON object in the following format:
 
 ## Guidelines for ${style.charAt(0).toUpperCase() + style.slice(1)} Style:
 
-${style === 'concise' ? `
+${
+  style === 'concise'
+    ? `
 - Focus on essential information only
 - Use bullet points and short paragraphs
 - Prioritize clarity and quick consumption
 - Include only the most important supporting details
-- Make every word count towards the core message` : 
-style === 'detailed' ? `
+- Make every word count towards the core message`
+    : style === 'detailed'
+      ? `
 - Provide comprehensive coverage of the topic
 - Include examples, data, and supporting evidence
 - Create logical flow between sections
 - Address potential questions or objections
-- Balance depth with readability` : `
+- Balance depth with readability`
+      : `
 - Create an emotional connection with the reader
 - Use anecdotes, examples, and personal stories
 - Build narrative tension and resolution
 - Include sensory details and vivid descriptions
-- Make the content memorable and shareable`}
+- Make the content memorable and shareable`
+}
 
 Generate a narrative that perfectly matches the ${style} style while maintaining the brand voice and achieving the content objectives.`;
 
@@ -521,7 +548,8 @@ Generate a narrative that perfectly matches the ${style} style while maintaining
   private parseNarrative(rawNarrative: string): StructuredNarrative {
     try {
       // Extract JSON from response
-      const jsonMatch = rawNarrative.match(/```json\s*([\s\S]*?)\s*```/) || rawNarrative.match(/\{[\s\S]*\}/);
+      const jsonMatch =
+        rawNarrative.match(/```json\s*([\s\S]*?)\s*```/) || rawNarrative.match(/\{[\s\S]*\}/);
       if (!jsonMatch) {
         throw new Error('No JSON found in narrative response');
       }
@@ -535,10 +563,12 @@ Generate a narrative that perfectly matches the ${style} style while maintaining
       // Validate and structure the response
       const structuredNarrative: StructuredNarrative = {
         introduction: parsed.introduction || 'Introduction not provided',
-        mainSections: Array.isArray(parsed.mainSections) ? parsed.mainSections.map((section: any) => ({
-          title: section.title || 'Untitled Section',
-          content: section.content || 'Content not provided',
-        })) : [],
+        mainSections: Array.isArray(parsed.mainSections)
+          ? parsed.mainSections.map((section: any) => ({
+              title: section.title || 'Untitled Section',
+              content: section.content || 'Content not provided',
+            }))
+          : [],
         conclusion: parsed.conclusion || 'Conclusion not provided',
         keyPoints: Array.isArray(parsed.keyPoints) ? parsed.keyPoints : ['Key points not provided'],
         callToAction: parsed.callToAction || 'Call to action not provided',
@@ -548,10 +578,10 @@ Generate a narrative that perfectly matches the ${style} style while maintaining
       return structuredNarrative;
     } catch (error) {
       this.logger.error('Failed to parse narrative response', { error });
-      
+
       // Fallback: Create a basic structure from raw response
       const fallbackWordCount = this.estimateWordCount({ content: rawNarrative });
-      
+
       return {
         introduction: 'Narrative parsing failed - raw content available',
         mainSections: [
@@ -570,25 +600,25 @@ Generate a narrative that perfectly matches the ${style} style while maintaining
 
   private estimateWordCount(content: any): number {
     const text = typeof content === 'string' ? content : JSON.stringify(content);
-    return text.split(/\s+/).filter(word => word.length > 0).length;
+    return text.split(/\s+/).filter((word) => word.length > 0).length;
   }
 
   private async saveNarrative(result: NarrativeResult): Promise<string> {
     const timestamp = Date.now();
     const cleanPostId = result.postId.replace(/[^a-zA-Z0-9-]/g, '-');
     const narrativePath = path.join(
-      process.cwd(), 
-      '.postgen', 
-      'narratives', 
+      process.cwd(),
+      '.postgen',
+      'narratives',
       `${cleanPostId}-${result.style}-${timestamp}.json`
     );
 
     await fs.writeFile(narrativePath, JSON.stringify(result, null, 2));
-    this.logger.info('Narrative saved', { 
-      narrativePath, 
-      postId: result.postId, 
+    this.logger.info('Narrative saved', {
+      narrativePath,
+      postId: result.postId,
       style: result.style,
-      wordCount: result.narrative.wordCount 
+      wordCount: result.narrative.wordCount,
     });
 
     return narrativePath;
@@ -611,24 +641,32 @@ ${result.narrative.introduction}
 
 ### Main Content
 
-${result.narrative.mainSections.map((section, index) => `#### ${index + 1}. ${section.title}
+${result.narrative.mainSections
+  .map(
+    (section, index) => `#### ${index + 1}. ${section.title}
 
-${section.content}`).join('\n\n')}
+${section.content}`
+  )
+  .join('\n\n')}
 
 ### Conclusion
 ${result.narrative.conclusion}
 
 ## Key Takeaways
-${result.narrative.keyPoints.map(point => `- ${point}`).join('\n')}
+${result.narrative.keyPoints.map((point) => `- ${point}`).join('\n')}
 
 ## Call to Action
 ${result.narrative.callToAction}
 
-${result.toneAnalysis ? `## Brand Voice Applied
+${
+  result.toneAnalysis
+    ? `## Brand Voice Applied
 - **Formality**: ${result.toneAnalysis.formality}
 - **Emotion**: ${result.toneAnalysis.emotion}
 - **Style**: ${result.toneAnalysis.style}
-- **Overall Tone**: ${result.toneAnalysis.overallTone}` : ''}
+- **Overall Tone**: ${result.toneAnalysis.overallTone}`
+    : ''
+}
 
 ---
 

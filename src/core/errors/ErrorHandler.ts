@@ -82,7 +82,6 @@ export class ErrorHandler {
   }
 
   private convertToBaseError(error: Error, context: ErrorContext): BaseError {
-
     const errorContext = {
       ...context,
       originalError: error.name,

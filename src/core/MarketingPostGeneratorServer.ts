@@ -20,12 +20,19 @@ import {
   registerBuiltInAdapters,
 } from '../services/search/index.js';
 import { InitPrompt } from '../prompts/index.js';
-import { SampleTool, SummarizeTool, GenerateToneTool, ContentPlanTool, NarrativeGeneratorTool, BlogPostGeneratorTool } from '../tools/index.js';
+import {
+  SampleTool,
+  SummarizeTool,
+  GenerateToneTool,
+  ContentPlanTool,
+  NarrativeGeneratorTool,
+  BlogPostGeneratorTool,
+} from '../tools/index.js';
 import { PromptFactory } from '../types/index.js';
-import { 
-  ToolAndPromptRegistry, 
-  RegistryFactory, 
-  type RegistryFactoryConfig
+import {
+  ToolAndPromptRegistry,
+  RegistryFactory,
+  type RegistryFactoryConfig,
 } from './registry/index.js';
 import winston from 'winston';
 import express from 'express';
@@ -101,14 +108,14 @@ export class MarketingPostGeneratorServer {
           enforceVersioning: true,
           maxRetries: 3,
           enableLogging: true,
-          namePrefix: 'marketing_post_generator_mcp__'
+          namePrefix: 'marketing_post_generator_mcp__',
         },
         loggerConfig: {
-          level: this.config.logging?.level || 'info'
+          level: this.config.logging?.level || 'info',
         },
         enableValidation: true,
         enableVersioning: true,
-        enableDiscovery: true
+        enableDiscovery: true,
       };
 
       // Initialize registry factory
@@ -158,7 +165,7 @@ export class MarketingPostGeneratorServer {
     this.logger.info('MCP Server initialized', {
       mode: this.config.server.mode,
       transport: this.config.server.transport,
-      registryEnabled: !!this.registry
+      registryEnabled: !!this.registry,
     });
   }
 
@@ -325,14 +332,14 @@ export class MarketingPostGeneratorServer {
               author: 'Marketing Post Generator MCP',
               tags: ['prompt', 'marketing', 'content'],
               createdAt: new Date(),
-              updatedAt: new Date()
+              updatedAt: new Date(),
             }
           );
         }
       }
 
       // Create prompt definitions for MCP registration (use registry if available)
-      const promptDefinitions = this.registry 
+      const promptDefinitions = this.registry
         ? this.registry.getPromptDefinitions()
         : promptInstances.map((prompt) => prompt.createPrompt());
 
@@ -441,14 +448,14 @@ export class MarketingPostGeneratorServer {
               author: 'Marketing Post Generator MCP',
               tags: ['tool', 'marketing', 'content'],
               createdAt: new Date(),
-              updatedAt: new Date()
+              updatedAt: new Date(),
             }
           );
         }
       }
 
       // Create tool definitions for MCP registration (use registry if available)
-      const toolDefinitions = this.registry 
+      const toolDefinitions = this.registry
         ? this.registry.getToolDefinitions()
         : toolInstances.map((tool) => tool.getToolDefinition());
 

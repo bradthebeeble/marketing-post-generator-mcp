@@ -1,14 +1,15 @@
 {
   "name": "marketing-post-generator-mcp",
   "version": "1.0.0",
-  "description": "A marketing post generator with MCP (Model Context Protocol) integration",
+  "description": "A powerful MCP server for AI-powered marketing blog post generation with Claude integration",
   "type": "module",
   "main": "dist/index.js",
   "engines": {
     "node": ">=18.0.0"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "echo 'Using existing dist directory'",
+    "prepublishOnly": "echo 'Ready to publish'",
     "dev": "tsx watch src/index.ts",
     "start": "node dist/index.js",
     "start:local": "MCP_MODE=local node dist/index.js",
@@ -37,17 +38,17 @@
     "claude",
     "ai"
   ],
-  "author": "Marketing Post Generator Team",
+  "author": "bradthebeeble",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/yourusername/marketing-post-generator-mcp.git"
+    "url": "git+https://github.com/bradthebeeble/marketing-post-generator-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/marketing-post-generator-mcp/issues"
+    "url": "https://github.com/bradthebeeble/marketing-post-generator-mcp/issues"
   },
-  "homepage": "https://github.com/yourusername/marketing-post-generator-mcp#readme",
-  "documentation": "https://github.com/yourusername/marketing-post-generator-mcp/tree/main/docs",
+  "homepage": "https://github.com/bradthebeeble/marketing-post-generator-mcp#readme",
+  "documentation": "https://github.com/bradthebeeble/marketing-post-generator-mcp/tree/main/docs",
   "devDependencies": {
     "@jest/globals": "^30.0.4",
     "@types/cors": "^2.8.19",
@@ -68,8 +69,14 @@
   "files": [
     "dist",
     "README.md",
-    "LICENSE"
+    "LICENSE",
+    "docs",
+    "examples",
+    ".env.example"
   ],
+  "bin": {
+    "marketing-post-generator-mcp": "./dist/index.js"
+  },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.56.0",
     "@mendable/firecrawl-js": "^1.21.1",

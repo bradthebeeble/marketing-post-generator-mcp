@@ -73,7 +73,13 @@ export class GenerateToneTool {
 
       // Generate source hash for caching
       const sourceHash = this.generateSourceHash(source, detailLevel);
-      const tonePath = path.join(process.cwd(), '.postgen', 'analysis', 'tone-analysis', `${sourceHash}.json`);
+      const tonePath = path.join(
+        process.cwd(),
+        '.postgen',
+        'analysis',
+        'tone-analysis',
+        `${sourceHash}.json`
+      );
 
       // Check for existing tone analysis (cache hit)
       const existingTone = await this.checkExistingTone(tonePath);
@@ -166,27 +172,29 @@ export class GenerateToneTool {
     // Try to determine if source is a URL or domain
     try {
       const url = new URL(source.startsWith('http') ? source : `https://${source}`);
-      
+
       // Check if it's a domain root or has a path
       if (url.pathname === '/' || url.pathname === '') {
         sourceType = 'domain';
         // Get samples from the domain
         this.logger.info('Fetching domain samples for tone analysis', { domain: url.hostname });
         const posts = await this.searchService.sampleDomain(url.hostname, 3);
-        
+
         if (posts.length === 0) {
           throw new Error(
             `No blog posts found for domain: ${url.hostname}. Please verify the domain is accessible and contains blog content.`
           );
         }
-        
-        content = posts.map(post => `Title: ${post.title}\nContent: ${post.content}`).join('\n\n---\n\n');
+
+        content = posts
+          .map((post) => `Title: ${post.title}\nContent: ${post.content}`)
+          .join('\n\n---\n\n');
       } else {
         sourceType = 'url';
         // Fetch specific post
         this.logger.info('Fetching specific post for tone analysis', { url: source });
         content = await this.searchService.fetchContent(source);
-        
+
         if (!content) {
           throw new Error(
             `Unable to fetch content from URL: ${source}. Please verify the URL is accessible and contains blog content.`
@@ -197,19 +205,21 @@ export class GenerateToneTool {
       if (error instanceof Error && error.message.includes('No blog posts found')) {
         throw error;
       }
-      
+
       // Assume it's a domain if URL parsing fails
       sourceType = 'domain';
       this.logger.info('Treating as domain and fetching samples', { domain: source });
       const posts = await this.searchService.sampleDomain(source, 3);
-      
+
       if (posts.length === 0) {
         throw new Error(
           `No blog posts found for domain: ${source}. Please verify the domain is accessible and contains blog content.`
         );
       }
-      
-      content = posts.map(post => `Title: ${post.title}\nContent: ${post.content}`).join('\n\n---\n\n');
+
+      content = posts
+        .map((post) => `Title: ${post.title}\nContent: ${post.content}`)
+        .join('\n\n---\n\n');
     }
 
     return { sourceType, content };
@@ -230,7 +240,10 @@ export class GenerateToneTool {
     return this.parseToneResponse(response.content, detailLevel);
   }
 
-  private buildTonePrompt(content: string, detailLevel: 'basic' | 'detailed' | 'comprehensive'): string {
+  private buildTonePrompt(
+    content: string,
+    detailLevel: 'basic' | 'detailed' | 'comprehensive'
+  ): string {
     // Truncate content if too long to fit in prompt
     const maxContentLength = 6000;
     const truncatedContent =
@@ -345,12 +358,15 @@ Please respond with ONLY the JSON object, no additional text or formatting.`;
       };
 
       if (detailLevel === 'detailed' || detailLevel === 'comprehensive') {
-        fallbackResult.wordChoicePatterns = 'Unable to extract word choice patterns - manual review recommended';
-        fallbackResult.sentenceStructure = 'Unable to extract sentence structure analysis - manual review recommended';
+        fallbackResult.wordChoicePatterns =
+          'Unable to extract word choice patterns - manual review recommended';
+        fallbackResult.sentenceStructure =
+          'Unable to extract sentence structure analysis - manual review recommended';
       }
 
       if (detailLevel === 'comprehensive') {
-        fallbackResult.uniqueCharacteristics = 'Unable to extract unique characteristics - manual review recommended';
+        fallbackResult.uniqueCharacteristics =
+          'Unable to extract unique characteristics - manual review recommended';
       }
 
       return fallbackResult;
@@ -364,7 +380,7 @@ Please respond with ONLY the JSON object, no additional text or formatting.`;
 
   private formatResponse(result: ToneAnalysisResult): string {
     const sourceInfo = result.sourceType === 'url' ? 'Specific Post' : 'Domain Sample';
-    
+
     let response = `# Tone of Voice Analysis
 
 ## Source Information

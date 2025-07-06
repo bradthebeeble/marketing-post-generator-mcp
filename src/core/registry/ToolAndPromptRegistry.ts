@@ -14,23 +14,20 @@ import {
   VersionInfo,
   RegistryError,
   DuplicateEntryError,
-  ValidationError
+  ValidationError,
 } from './types.js';
 
 /**
  * Central registry for managing MCP tools and prompts
  */
 export class ToolAndPromptRegistry {
-  private tools: Map<string, ToolRegistryEntry> = new Map();
-  private prompts: Map<string, PromptRegistryEntry> = new Map();
-  private config: RegistryConfig;
-  private logger: winston.Logger;
-  private eventListeners: ((event: RegistryEvent) => void)[] = [];
+  private readonly tools: Map<string, ToolRegistryEntry> = new Map();
+  private readonly prompts: Map<string, PromptRegistryEntry> = new Map();
+  private readonly config: RegistryConfig;
+  private readonly logger: winston.Logger;
+  private readonly eventListeners: ((event: RegistryEvent) => void)[] = [];
 
-  constructor(
-    config: Partial<RegistryConfig> = {},
-    logger?: winston.Logger
-  ) {
+  constructor(config: Partial<RegistryConfig> = {}, logger?: winston.Logger) {
     this.config = {
       validateOnRegister: true,
       allowDuplicateNames: false,
@@ -38,18 +35,20 @@ export class ToolAndPromptRegistry {
       maxRetries: 3,
       enableLogging: true,
       namePrefix: 'marketing_post_generator_mcp__',
-      ...config
+      ...config,
     };
 
-    this.logger = logger || winston.createLogger({
-      level: 'info',
-      format: winston.format.json(),
-      transports: [
-        new winston.transports.Console({
-          format: winston.format.simple()
-        })
-      ]
-    });
+    this.logger =
+      logger ||
+      winston.createLogger({
+        level: 'info',
+        format: winston.format.json(),
+        transports: [
+          new winston.transports.Console({
+            format: winston.format.simple(),
+          }),
+        ],
+      });
   }
 
   /**
@@ -75,7 +74,7 @@ export class ToolAndPromptRegistry {
       createdAt: metadata.createdAt || new Date(),
       updatedAt: metadata.updatedAt || new Date(),
       inputValidation: metadata.inputValidation,
-      dependencies: metadata.dependencies
+      dependencies: metadata.dependencies,
     };
 
     await this.registerEntry(entry);
@@ -105,7 +104,7 @@ export class ToolAndPromptRegistry {
       createdAt: metadata.createdAt || new Date(),
       updatedAt: metadata.updatedAt || new Date(),
       inputValidation: metadata.inputValidation,
-      dependencies: metadata.dependencies
+      dependencies: metadata.dependencies,
     };
 
     await this.registerEntry(entry);
@@ -159,8 +158,8 @@ export class ToolAndPromptRegistry {
    */
   getToolDefinitions(): Tool[] {
     return Array.from(this.tools.values())
-      .filter(entry => !entry.deprecated)
-      .map(entry => entry.toolDefinition);
+      .filter((entry) => !entry.deprecated)
+      .map((entry) => entry.toolDefinition);
   }
 
   /**
@@ -168,8 +167,8 @@ export class ToolAndPromptRegistry {
    */
   getPromptDefinitions(): Prompt[] {
     return Array.from(this.prompts.values())
-      .filter(entry => !entry.deprecated)
-      .map(entry => entry.promptDefinition);
+      .filter((entry) => !entry.deprecated)
+      .map((entry) => entry.promptDefinition);
   }
 
   /**
@@ -182,7 +181,10 @@ export class ToolAndPromptRegistry {
     }
 
     if (tool.deprecated) {
-      this.log('warn', `Executing deprecated tool '${name}': ${tool.deprecationReason || 'No reason provided'}`);
+      this.log(
+        'warn',
+        `Executing deprecated tool '${name}': ${tool.deprecationReason || 'No reason provided'}`
+      );
     }
 
     const executionContext: ExecutionContext = {
@@ -190,7 +192,7 @@ export class ToolAndPromptRegistry {
       userId: context?.userId,
       sessionId: context?.sessionId,
       metadata: context?.metadata,
-      startTime: new Date()
+      startTime: new Date(),
     };
 
     this.emitEvent({ type: 'tool_executed', name, context: executionContext });
@@ -211,14 +213,21 @@ export class ToolAndPromptRegistry {
   /**
    * Execute a prompt by name
    */
-  async executePrompt(name: string, args: any, context?: Partial<ExecutionContext>): Promise<string> {
+  async executePrompt(
+    name: string,
+    args: any,
+    context?: Partial<ExecutionContext>
+  ): Promise<string> {
     const prompt = this.getPrompt(name);
     if (!prompt) {
       throw new RegistryError(`Prompt '${name}' not found`, 'PROMPT_NOT_FOUND');
     }
 
     if (prompt.deprecated) {
-      this.log('warn', `Executing deprecated prompt '${name}': ${prompt.deprecationReason || 'No reason provided'}`);
+      this.log(
+        'warn',
+        `Executing deprecated prompt '${name}': ${prompt.deprecationReason || 'No reason provided'}`
+      );
     }
 
     const executionContext: ExecutionContext = {
@@ -226,7 +235,7 @@ export class ToolAndPromptRegistry {
       userId: context?.userId,
       sessionId: context?.sessionId,
       metadata: context?.metadata,
-      startTime: new Date()
+      startTime: new Date(),
     };
 
     this.emitEvent({ type: 'prompt_executed', name, context: executionContext });
@@ -252,8 +261,8 @@ export class ToolAndPromptRegistry {
     let latestVersion = { major: 0, minor: 0, patch: 0 };
 
     // Collect all tags and find latest version
-    [...this.tools.values(), ...this.prompts.values()].forEach(entry => {
-      entry.tags?.forEach(tag => allTags.add(tag));
+    [...this.tools.values(), ...this.prompts.values()].forEach((entry) => {
+      entry.tags?.forEach((tag) => allTags.add(tag));
       if (this.compareVersions(entry.version, latestVersion) > 0) {
         latestVersion = entry.version;
       }
@@ -264,7 +273,7 @@ export class ToolAndPromptRegistry {
       totalPrompts: this.prompts.size,
       categories: Array.from(allTags),
       latestVersion: this.formatVersion(latestVersion),
-      serverCapabilities: ['tools', 'prompts', 'versioning', 'discovery']
+      serverCapabilities: ['tools', 'prompts', 'versioning', 'discovery'],
     };
   }
 
@@ -275,7 +284,7 @@ export class ToolAndPromptRegistry {
     const entries: DiscoveryEntry[] = [];
 
     // Add tools
-    this.tools.forEach(tool => {
+    this.tools.forEach((tool) => {
       entries.push({
         name: tool.name,
         type: 'tool',
@@ -283,12 +292,12 @@ export class ToolAndPromptRegistry {
         version: this.formatVersion(tool.version),
         deprecated: tool.deprecated || false,
         inputSchema: tool.toolDefinition.inputSchema,
-        tags: tool.tags || []
+        tags: tool.tags || [],
       });
     });
 
     // Add prompts
-    this.prompts.forEach(prompt => {
+    this.prompts.forEach((prompt) => {
       entries.push({
         name: prompt.name,
         type: 'prompt',
@@ -296,7 +305,7 @@ export class ToolAndPromptRegistry {
         version: this.formatVersion(prompt.version),
         deprecated: prompt.deprecated || false,
         parameters: prompt.promptDefinition.parameters,
-        tags: prompt.tags || []
+        tags: prompt.tags || [],
       });
     });
 
@@ -308,13 +317,13 @@ export class ToolAndPromptRegistry {
    */
   getStats(): RegistryStats {
     const allEntries = [...this.tools.values(), ...this.prompts.values()];
-    const deprecatedCount = allEntries.filter(entry => entry.deprecated).length;
-    
+    const deprecatedCount = allEntries.filter((entry) => entry.deprecated).length;
+
     let oldestEntry = new Date();
     let newestEntry = new Date(0);
-    let totalVersion = { major: 0, minor: 0, patch: 0 };
+    const totalVersion = { major: 0, minor: 0, patch: 0 };
 
-    allEntries.forEach(entry => {
+    allEntries.forEach((entry) => {
       if (entry.createdAt < oldestEntry) oldestEntry = entry.createdAt;
       if (entry.createdAt > newestEntry) newestEntry = entry.createdAt;
       totalVersion.major += entry.version.major;
@@ -327,7 +336,7 @@ export class ToolAndPromptRegistry {
     const averageVersion = {
       major: Math.round(totalVersion.major / count),
       minor: Math.round(totalVersion.minor / count),
-      patch: Math.round(totalVersion.patch / count)
+      patch: Math.round(totalVersion.patch / count),
     };
 
     return {
@@ -337,7 +346,7 @@ export class ToolAndPromptRegistry {
       deprecatedCount,
       averageVersion: this.formatVersion(averageVersion),
       oldestEntry,
-      newestEntry
+      newestEntry,
     };
   }
 
@@ -372,7 +381,8 @@ export class ToolAndPromptRegistry {
   private async registerEntry(entry: RegistryEntry): Promise<void> {
     // Check for duplicates
     if (!this.config.allowDuplicateNames) {
-      const existing = entry.type === 'tool' ? this.tools.get(entry.name) : this.prompts.get(entry.name);
+      const existing =
+        entry.type === 'tool' ? this.tools.get(entry.name) : this.prompts.get(entry.name);
       if (existing) {
         throw new DuplicateEntryError(entry.name);
       }
@@ -389,8 +399,14 @@ export class ToolAndPromptRegistry {
     if (this.config.validateOnRegister) {
       const validationResult = this.validateEntry(entry);
       if (!validationResult.isValid) {
-        this.emitEvent({ type: 'validation_failed', name: entry.name, errors: validationResult.errors });
-        throw new ValidationError(`Validation failed for '${entry.name}': ${validationResult.errors.join(', ')}`);
+        this.emitEvent({
+          type: 'validation_failed',
+          name: entry.name,
+          errors: validationResult.errors,
+        });
+        throw new ValidationError(
+          `Validation failed for '${entry.name}': ${validationResult.errors.join(', ')}`
+        );
       }
     }
 
@@ -401,7 +417,10 @@ export class ToolAndPromptRegistry {
       this.prompts.set(entry.name, entry);
     }
 
-    this.log('info', `Registered ${entry.type} '${entry.name}' version ${this.formatVersion(entry.version)}`);
+    this.log(
+      'info',
+      `Registered ${entry.type} '${entry.name}' version ${this.formatVersion(entry.version)}`
+    );
   }
 
   private validateEntry(entry: RegistryEntry): ValidationResult {
@@ -446,7 +465,7 @@ export class ToolAndPromptRegistry {
     return {
       isValid: errors.length === 0,
       errors,
-      warnings
+      warnings,
     };
   }
 
@@ -471,7 +490,7 @@ export class ToolAndPromptRegistry {
   }
 
   private emitEvent(event: RegistryEvent): void {
-    this.eventListeners.forEach(listener => {
+    this.eventListeners.forEach((listener) => {
       try {
         listener(event);
       } catch (error) {

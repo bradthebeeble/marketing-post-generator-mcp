@@ -19,13 +19,8 @@ export type {
   RegistryStats,
   CompatibilityResult,
   ExecutionContext,
-  RegistryEvent
+  RegistryEvent,
 } from './types.js';
 
-// Error exports  
-export {
-  RegistryError,
-  ValidationError,
-  VersionError,
-  DuplicateEntryError
-} from './types.js';
+// Error exports
+export { RegistryError, ValidationError, VersionError, DuplicateEntryError } from './types.js';

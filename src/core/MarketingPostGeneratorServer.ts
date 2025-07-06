@@ -22,6 +22,11 @@ import {
 import { InitPrompt } from '../prompts/index.js';
 import { SampleTool, SummarizeTool, GenerateToneTool, ContentPlanTool, NarrativeGeneratorTool, BlogPostGeneratorTool } from '../tools/index.js';
 import { PromptFactory } from '../types/index.js';
+import { 
+  ToolAndPromptRegistry, 
+  RegistryFactory, 
+  type RegistryFactoryConfig
+} from './registry/index.js';
 import winston from 'winston';
 import express from 'express';
 import cors from 'cors';
@@ -34,6 +39,8 @@ export class MarketingPostGeneratorServer {
   private readonly logger: winston.Logger;
   private httpServer?: express.Application;
   private httpTransport?: StreamableHTTPServerTransport;
+  private registry?: ToolAndPromptRegistry;
+  private registryFactory?: RegistryFactory;
   private readonly prompts: Map<string, PromptFactory> = new Map();
   private readonly tools: Map<
     string,
@@ -50,7 +57,7 @@ export class MarketingPostGeneratorServer {
 
   async initialize(): Promise<void> {
     await this.initializeDependencies();
-    this.initializeMCPServer();
+    await this.initializeMCPServer();
   }
 
   private async initializeDependencies(): Promise<void> {
@@ -76,16 +83,54 @@ export class MarketingPostGeneratorServer {
     const searchService = await createSearchService(this.config.search, this.logger);
     this.container.register<SearchService>('SearchService', () => searchService);
 
+    // Initialize Registry Factory and Registry
+    await this.initializeRegistry();
+
     this.logger.info('Dependencies initialized', {
       registeredServices: this.container.getRegisteredTokens(),
     });
+  }
+
+  private async initializeRegistry(): Promise<void> {
+    try {
+      // Create registry factory configuration
+      const registryConfig: RegistryFactoryConfig = {
+        registryConfig: {
+          validateOnRegister: true,
+          allowDuplicateNames: false,
+          enforceVersioning: true,
+          maxRetries: 3,
+          enableLogging: true,
+          namePrefix: 'marketing_post_generator_mcp__'
+        },
+        loggerConfig: {
+          level: this.config.logging?.level || 'info'
+        },
+        enableValidation: true,
+        enableVersioning: true,
+        enableDiscovery: true
+      };
+
+      // Initialize registry factory
+      this.registryFactory = await RegistryFactory.createWithConfig(this.container, registryConfig);
+      this.registry = this.registryFactory.getRegistry();
+
+      this.logger.info('Registry system initialized successfully');
+    } catch (error) {
+      this.logger.error('Failed to initialize registry system', { error });
+      throw error;
+    }
   }
 
   public getClaudeService(): IClaudeService {
     return this.container.resolve<IClaudeService>('ClaudeService');
   }
 
-  private initializeMCPServer(): void {
+  public getRegistry(): ToolAndPromptRegistry | undefined {
+    return this.registry;
+  }
+
+  private async initializeMCPServer(): Promise<void> {
     // Create transport based on configuration
     const transport = this.createTransport();
 
@@ -104,8 +149,8 @@ export class MarketingPostGeneratorServer {
     );
 
     // Register prompts and tools
-    this.registerPrompts();
-    this.registerTools();
+    await this.registerPrompts();
+    await this.registerTools();
 
     // Connect transport
     void this.mcpServer.connect(transport);
@@ -113,6 +158,7 @@ export class MarketingPostGeneratorServer {
     this.logger.info('MCP Server initialized', {
       mode: this.config.server.mode,
       transport: this.config.server.transport,
+      registryEnabled: !!this.registry
     });
   }
 
@@ -254,7 +300,7 @@ export class MarketingPostGeneratorServer {
     }
   }
 
-  private registerPrompts(): void {
+  private async registerPrompts(): Promise<void> {
     try {
       // Register all prompt instances
       const promptInstances: PromptFactory[] = [
@@ -262,13 +308,33 @@ export class MarketingPostGeneratorServer {
         // Add more prompts here as they're implemented
       ];
 
-      // Store prompts in registry for O(1) lookup
+      // Store prompts in legacy registry for O(1) lookup (backward compatibility)
       promptInstances.forEach((prompt) => {
         this.prompts.set(prompt.getPromptName(), prompt);
       });
 
-      // Create prompt definitions for MCP registration
-      const promptDefinitions = promptInstances.map((prompt) => prompt.createPrompt());
+      // Register prompts with the new registry system
+      if (this.registry) {
+        for (const prompt of promptInstances) {
+          const promptDefinition = prompt.createPrompt();
+          await this.registry.registerPrompt(
+            promptDefinition,
+            async (args: any) => await this.executePrompt(prompt, promptDefinition.name, args),
+            {
+              version: { major: 1, minor: 0, patch: 0 },
+              author: 'Marketing Post Generator MCP',
+              tags: ['prompt', 'marketing', 'content'],
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          );
+        }
+      }
+
+      // Create prompt definitions for MCP registration (use registry if available)
+      const promptDefinitions = this.registry 
+        ? this.registry.getPromptDefinitions()
+        : promptInstances.map((prompt) => prompt.createPrompt());
 
       this.mcpServer.setRequestHandler(ListPromptsRequestSchema, async () => {
         return {
@@ -279,6 +345,28 @@ export class MarketingPostGeneratorServer {
       this.mcpServer.setRequestHandler(GetPromptRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
 
+        // Try registry first, fallback to legacy method
+        if (this.registry) {
+          const registryEntry = this.registry.getPrompt(name);
+          if (registryEntry) {
+            const result = await this.registry.executePrompt(name, args);
+            return {
+              description: registryEntry.description,
+              arguments: registryEntry.promptDefinition.parameters,
+              messages: [
+                {
+                  role: 'user' as const,
+                  content: {
+                    type: 'text' as const,
+                    text: result,
+                  },
+                },
+              ],
+            };
+          }
+        }
+
+        // Fallback to legacy method
         const promptFactory = this.prompts.get(name);
         if (!promptFactory) {
           throw new Error(`Unknown prompt: ${name}`);
@@ -316,7 +404,7 @@ export class MarketingPostGeneratorServer {
     }
   }
 
-  private registerTools(): void {
+  private async registerTools(): Promise<void> {
     try {
       // Get services from DI container
       const searchService = this.container.resolve<SearchService>('SearchService');
@@ -333,13 +421,36 @@ export class MarketingPostGeneratorServer {
         // Add more tools here as they're implemented
       ];
 
-      // Store tools in registry for O(1) lookup
+      // Store tools in legacy registry for O(1) lookup (backward compatibility)
       toolInstances.forEach((tool) => {
         this.tools.set(tool.getToolDefinition().name, tool);
       });
 
-      // Create tool definitions for MCP registration
-      const toolDefinitions = toolInstances.map((tool) => tool.getToolDefinition());
+      // Register tools with the new registry system
+      if (this.registry) {
+        for (const tool of toolInstances) {
+          const toolDefinition = tool.getToolDefinition();
+          await this.registry.registerTool(
+            toolDefinition,
+            async (args: any) => {
+              const claudeService = this.getClaudeService();
+              return await tool.execute(args, claudeService);
+            },
+            {
+              version: { major: 1, minor: 0, patch: 0 },
+              author: 'Marketing Post Generator MCP',
+              tags: ['tool', 'marketing', 'content'],
+              createdAt: new Date(),
+              updatedAt: new Date()
+            }
+          );
+        }
+      }
+
+      // Create tool definitions for MCP registration (use registry if available)
+      const toolDefinitions = this.registry 
+        ? this.registry.getToolDefinitions()
+        : toolInstances.map((tool) => tool.getToolDefinition());
 
       this.mcpServer.setRequestHandler(ListToolsRequestSchema, async () => {
         return {
@@ -350,6 +461,23 @@ export class MarketingPostGeneratorServer {
       this.mcpServer.setRequestHandler(CallToolRequestSchema, async (request) => {
         const { name, arguments: args } = request.params;
 
+        // Try registry first, fallback to legacy method
+        if (this.registry) {
+          const registryEntry = this.registry.getTool(name);
+          if (registryEntry) {
+            const result = await this.registry.executeTool(name, args);
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: result,
+                },
+              ],
+            };
+          }
+        }
+
+        // Fallback to legacy method
         const tool = this.tools.get(name);
         if (!tool) {
           throw new Error(`Unknown tool: ${name}`);

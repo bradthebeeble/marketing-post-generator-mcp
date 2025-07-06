@@ -50,7 +50,8 @@
       "Bash(chmod:*)",
       "Bash(docker build:*)",
       "mcp__github__create_pull_request",
-      "Bash(npm run start:*)"
+      "Bash(npm run start:*)",
+      "mcp__task-master-ai__update_subtask"
     ],
     "deny": []
   },

@@ -20,7 +20,7 @@ import {
   registerBuiltInAdapters,
 } from '../services/search/index.js';
 import { InitPrompt } from '../prompts/index.js';
-import { SampleTool, SummarizeTool, GenerateToneTool } from '../tools/index.js';
+import { SampleTool, SummarizeTool, GenerateToneTool, ContentPlanTool } from '../tools/index.js';
 import { PromptFactory } from '../types/index.js';
 import winston from 'winston';
 import express from 'express';
@@ -327,6 +327,7 @@ export class MarketingPostGeneratorServer {
         new SampleTool(searchService, logger),
         new SummarizeTool(searchService, logger),
         new GenerateToneTool(searchService, logger),
+        new ContentPlanTool(searchService, logger),
         // Add more tools here as they're implemented
       ];
 

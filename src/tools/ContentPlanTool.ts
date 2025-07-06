@@ -4,7 +4,6 @@ import { IClaudeService } from '../services/claude/IClaudeService.js';
 import { createLogger } from '../utils/logger.js';
 import winston from 'winston';
 import * as fs from 'fs/promises';
-import { readFileSync } from 'fs';
 import * as path from 'path';
 
 export interface ContentPlanToolArgs {
@@ -230,23 +229,33 @@ export class ContentPlanTool {
       const files = await fs.readdir(toneAnalysisDir);
       
       // Look for domain-related tone analysis files
-      const domainFiles = files.filter(file => {
+      const domainFiles = [];
+      for (const file of files) {
         try {
-          const content = readFileSync(path.join(toneAnalysisDir, file), 'utf-8');
+          const content = await fs.readFile(path.join(toneAnalysisDir, file), 'utf-8');
           const toneData = JSON.parse(content);
-          return toneData.source && (
-            toneData.source.includes(domain) || 
-            domain.includes(toneData.source)
-          );
+          // Use more specific domain matching to prevent false positives
+          if (toneData.source && this.createDomainMatcher(domain)(file)) {
+            domainFiles.push(file);
+          }
         } catch {
-          return false;
+          // Skip files that can't be read or parsed
         }
-      });
+      }
 
       if (domainFiles.length > 0) {
-        // Use the most recent tone analysis
-        const latestFile = domainFiles[domainFiles.length - 1];
-        const content = await fs.readFile(path.join(toneAnalysisDir, latestFile!), 'utf-8');
+        // Use the most recent tone analysis by modification time
+        const filesWithStats = await Promise.all(
+          domainFiles.map(async (file) => {
+            const stat = await fs.stat(path.join(toneAnalysisDir, file));
+            return { file, mtime: stat.mtime };
+          })
+        );
+        const latestFile = filesWithStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())[0];
+        if (!latestFile) {
+          return null;
+        }
+        const content = await fs.readFile(path.join(toneAnalysisDir, latestFile.file), 'utf-8');
         const toneData = JSON.parse(content);
         
         return {
@@ -271,11 +280,21 @@ export class ContentPlanTool {
       
       // Look for domain-specific content plan files
       const domainMatcher = this.createDomainMatcher(domain);
-      const domainFiles = files.filter(domainMatcher).sort(); // Sort to get the latest one
+      const domainFiles = files.filter(domainMatcher);
 
       if (domainFiles.length > 0) {
-        const latestFile = domainFiles[domainFiles.length - 1];
-        const content = await fs.readFile(path.join(contentPlansDir, latestFile!), 'utf-8');
+        // Get the most recent file by modification time
+        const filesWithStats = await Promise.all(
+          domainFiles.map(async (file) => {
+            const stat = await fs.stat(path.join(contentPlansDir, file));
+            return { file, mtime: stat.mtime };
+          })
+        );
+        const latestFile = filesWithStats.sort((a, b) => b.mtime.getTime() - a.mtime.getTime())[0];
+        if (!latestFile) {
+          return null;
+        }
+        const content = await fs.readFile(path.join(contentPlansDir, latestFile.file), 'utf-8');
         return JSON.parse(content) as ContentPlanResult;
       }
 
@@ -451,7 +470,11 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
         throw new Error('No JSON found in content plan response');
       }
 
-      const parsed = JSON.parse(jsonMatch[jsonMatch.length - 1]!);
+      const jsonText = jsonMatch[jsonMatch.length - 1];
+      if (!jsonText) {
+        throw new Error('No valid JSON content found in response');
+      }
+      const parsed = JSON.parse(jsonText);
 
       // Validate and structure the response
       const posts: ContentPlanPost[] = (parsed.posts || []).map((post: any) => ({

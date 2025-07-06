@@ -600,16 +600,80 @@
         "id": 15,
         "title": "Blog Post Generator Tool Implementation",
         "description": "Implement the tool for writing complete blog posts from scratch or based on narratives.",
-        "details": "1. Create a tool definition for blog post generation\n2. Implement logic to use narratives or generate from scratch\n3. Use Claude Code to write complete blog posts\n4. Store the posts in the .postgen/posts directory\n5. Implement options for different post lengths and styles\n6. Add functionality to revise existing posts\n\n```typescript\nimport { MCPTool } from '@modelcontextprotocol/sdk';\nimport { ClaudeService } from './services/claude-service';\nimport * as fs from 'fs/promises';\nimport * as path from 'path';\n\nexport const blogPostGeneratorTool: MCPTool = {\n  name: 'marketing_post_generator_mcp__write_post',\n  description: 'Write a complete blog post from scratch or based on a narrative',\n  parameters: {\n    narrativeId: {\n      type: 'string',\n      description: 'ID of the narrative to base the post on (optional)',\n      required: false,\n    },\n    title: {\n      type: 'string',\n      description: 'Title of the blog post (required if narrativeId not provided)',\n      required: false,\n    },\n    topic: {\n      type: 'string',\n      description: 'Topic of the blog post (required if narrativeId not provided)',\n      required: false,\n    },\n    keywords: {\n      type: 'array',\n      items: {\n        type: 'string',\n      },\n      description: 'Keywords for the blog post (optional)',\n      required: false,\n    },\n    wordCount: {\n      type: 'number',\n      description: 'Target word count for the post',\n      default: 1000,\n    },\n    style: {\n      type: 'string',\n      description: 'Writing style for the post',\n      enum: ['informative', 'persuasive', 'storytelling', 'technical', 'conversational'],\n      default: 'informative',\n    },\n  },\n  handler: async ({ narrativeId, title, topic, keywords, wordCount, style }, { claudeService }) => {\n    // Validate .postgen directory exists\n    const postgenDir = path.join(process.cwd(), '.postgen');\n    try {\n      await fs.access(postgenDir);\n    } catch (error) {\n      throw new Error('Please run the init prompt first');\n    }\n    \n    // Get domain from config\n    const config = await getPostgenConfig(postgenDir);\n    \n    // Get tone analysis for the domain\n    const toneAnalysis = await getExistingToneAnalysis(config.domain, postgenDir);\n    \n    let narrative = null;\n    \n    // If narrativeId is provided, get the narrative\n    if (narrativeId) {\n      narrative = await getNarrative(narrativeId, postgenDir);\n      title = narrative.title;\n      topic = narrative.post.topic;\n      keywords = narrative.post.keywords;\n    } else if (!title || !topic) {\n      throw new Error('Either narrativeId or both title and topic must be provided.');\n    }\n    \n    // Generate blog post with Claude\n    const prompt = buildBlogPostPrompt({\n      title,\n      topic,\n      keywords: keywords || [],\n      wordCount,\n      style,\n      toneAnalysis,\n      narrative: narrative ? narrative.rawNarrative : null,\n      domain: config.domain,\n    });\n    \n    const blogPost = await claudeService.generateContent(prompt);\n    \n    // Save the blog post\n    const postId = Date.now();\n    const postPath = path.join(postgenDir, 'posts', `${postId}.md`);\n    await fs.mkdir(path.dirname(postPath), { recursive: true });\n    \n    // Add metadata as frontmatter\n    const frontmatter = `---\ntitle: ${title}\ntopic: ${topic}\nkeywords: ${(keywords || []).join(', ')}\nwordCount: ${wordCount}\nstyle: ${style}\ncreatedAt: ${new Date().toISOString()}\nnarrativeId: ${narrativeId || null}\n---\\n\\n`;\n    \n    await fs.writeFile(postPath, frontmatter + blogPost);\n    \n    // Save metadata separately\n    const metaPath = path.join(postgenDir, 'posts', `${postId}.json`);\n    const metadata = {\n      id: postId.toString(),\n      title,\n      topic,\n      keywords: keywords || [],\n      wordCount,\n      style,\n      narrativeId: narrativeId || null,\n      createdAt: new Date().toISOString(),\n    };\n    \n    await fs.writeFile(metaPath, JSON.stringify(metadata, null, 2));\n    \n    return {\n      ...metadata,\n      excerpt: blogPost.substring(0, 200) + '...',\n      filePath: postPath,\n    };\n  },\n};\n\nfunction buildBlogPostPrompt(options) {\n  // Build a prompt for blog post generation based on options\n  let prompt = `Write a ${options.style} blog post about ${options.topic} with the title \"${options.title}\".`;\n  \n  if (options.keywords && options.keywords.length > 0) {\n    prompt += `\\n\\nInclude these keywords: ${options.keywords.join(', ')}`;\n  }\n  \n  prompt += `\\n\\nThe post should be approximately ${options.wordCount} words.`;\n  \n  if (options.toneAnalysis) {\n    prompt += `\\n\\nUse this tone of voice: ${options.toneAnalysis}`;\n  }\n  \n  if (options.narrative) {\n    prompt += `\\n\\nBase the post on this narrative outline:\\n${options.narrative}`;\n  }\n  \n  prompt += `\\n\\nThis is for the blog at ${options.domain}.`;\n  \n  return prompt;\n}\n\nasync function getPostgenConfig(postgenDir) {\n  // Get the postgen config\n  const configPath = path.join(postgenDir, 'config.json');\n  const configData = await fs.readFile(configPath, 'utf-8');\n  return JSON.parse(configData);\n}\n\nasync function getExistingToneAnalysis(domain, postgenDir) {\n  // Get existing tone analysis for the domain\n}\n\nasync function getNarrative(narrativeId, postgenDir) {\n  // Get a narrative by ID\n}\n```",
-        "testStrategy": "Test post generation with and without narratives. Test different styles and word counts. Verify posts are correctly stored in the .postgen directory. Test error handling for missing narratives or invalid parameters.",
-        "priority": "high",
+        "status": "done",
         "dependencies": [
           3,
           4,
           14
         ],
-        "status": "pending",
-        "subtasks": []
+        "priority": "high",
+        "details": "1. Create a tool definition for blog post generation\n2. Implement logic to use narratives or generate from scratch\n3. Use Claude Code to write complete blog posts\n4. Store the posts in the .postgen/posts directory\n5. Implement options for different post lengths and styles\n6. Add functionality to revise existing posts\n\n```typescript\nimport { MCPTool } from '@modelcontextprotocol/sdk';\nimport { ClaudeService } from './services/claude-service';\nimport * as fs from 'fs/promises';\nimport * as path from 'path';\n\nexport const blogPostGeneratorTool: MCPTool = {\n  name: 'marketing_post_generator_mcp__write_post',\n  description: 'Write a complete blog post from scratch or based on a narrative',\n  parameters: {\n    narrativeId: {\n      type: 'string',\n      description: 'ID of the narrative to base the post on (optional)',\n      required: false,\n    },\n    title: {\n      type: 'string',\n      description: 'Title of the blog post (required if narrativeId not provided)',\n      required: false,\n    },\n    topic: {\n      type: 'string',\n      description: 'Topic of the blog post (required if narrativeId not provided)',\n      required: false,\n    },\n    keywords: {\n      type: 'array',\n      items: {\n        type: 'string',\n      },\n      description: 'Keywords for the blog post (optional)',\n      required: false,\n    },\n    wordCount: {\n      type: 'number',\n      description: 'Target word count for the post',\n      default: 1000,\n    },\n    style: {\n      type: 'string',\n      description: 'Writing style for the post',\n      enum: ['informative', 'persuasive', 'storytelling', 'technical', 'conversational'],\n      default: 'informative',\n    },\n  },\n  handler: async ({ narrativeId, title, topic, keywords, wordCount, style }, { claudeService }) => {\n    // Validate .postgen directory exists\n    const postgenDir = path.join(process.cwd(), '.postgen');\n    try {\n      await fs.access(postgenDir);\n    } catch (error) {\n      throw new Error('Please run the init prompt first');\n    }\n    \n    // Get domain from config\n    const config = await getPostgenConfig(postgenDir);\n    \n    // Get tone analysis for the domain\n    const toneAnalysis = await getExistingToneAnalysis(config.domain, postgenDir);\n    \n    let narrative = null;\n    \n    // If narrativeId is provided, get the narrative\n    if (narrativeId) {\n      narrative = await getNarrative(narrativeId, postgenDir);\n      title = narrative.title;\n      topic = narrative.post.topic;\n      keywords = narrative.post.keywords;\n    } else if (!title || !topic) {\n      throw new Error('Either narrativeId or both title and topic must be provided.');\n    }\n    \n    // Generate blog post with Claude\n    const prompt = buildBlogPostPrompt({\n      title,\n      topic,\n      keywords: keywords || [],\n      wordCount,\n      style,\n      toneAnalysis,\n      narrative: narrative ? narrative.rawNarrative : null,\n      domain: config.domain,\n    });\n    \n    const blogPost = await claudeService.generateContent(prompt);\n    \n    // Save the blog post\n    const postId = Date.now();\n    const postPath = path.join(postgenDir, 'posts', `${postId}.md`);\n    await fs.mkdir(path.dirname(postPath), { recursive: true });\n    \n    // Add metadata as frontmatter\n    const frontmatter = `---\ntitle: ${title}\ntopic: ${topic}\nkeywords: ${(keywords || []).join(', ')}\nwordCount: ${wordCount}\nstyle: ${style}\ncreatedAt: ${new Date().toISOString()}\nnarrativeId: ${narrativeId || null}\n---\\n\\n`;\n    \n    await fs.writeFile(postPath, frontmatter + blogPost);\n    \n    // Save metadata separately\n    const metaPath = path.join(postgenDir, 'posts', `${postId}.json`);\n    const metadata = {\n      id: postId.toString(),\n      title,\n      topic,\n      keywords: keywords || [],\n      wordCount,\n      style,\n      narrativeId: narrativeId || null,\n      createdAt: new Date().toISOString(),\n    };\n    \n    await fs.writeFile(metaPath, JSON.stringify(metadata, null, 2));\n    \n    return {\n      ...metadata,\n      excerpt: blogPost.substring(0, 200) + '...',\n      filePath: postPath,\n    };\n  },\n};\n\nfunction buildBlogPostPrompt(options) {\n  // Build a prompt for blog post generation based on options\n  let prompt = `Write a ${options.style} blog post about ${options.topic} with the title \"${options.title}\".`;\n  \n  if (options.keywords && options.keywords.length > 0) {\n    prompt += `\\n\\nInclude these keywords: ${options.keywords.join(', ')}`;\n  }\n  \n  prompt += `\\n\\nThe post should be approximately ${options.wordCount} words.`;\n  \n  if (options.toneAnalysis) {\n    prompt += `\\n\\nUse this tone of voice: ${options.toneAnalysis}`;\n  }\n  \n  if (options.narrative) {\n    prompt += `\\n\\nBase the post on this narrative outline:\\n${options.narrative}`;\n  }\n  \n  prompt += `\\n\\nThis is for the blog at ${options.domain}.`;\n  \n  return prompt;\n}\n\nasync function getPostgenConfig(postgenDir) {\n  // Get the postgen config\n  const configPath = path.join(postgenDir, 'config.json');\n  const configData = await fs.readFile(configPath, 'utf-8');\n  return JSON.parse(configData);\n}\n\nasync function getExistingToneAnalysis(domain, postgenDir) {\n  // Get existing tone analysis for the domain\n}\n\nasync function getNarrative(narrativeId, postgenDir) {\n  // Get a narrative by ID\n}\n```",
+        "testStrategy": "Test post generation with and without narratives. Test different styles and word counts. Verify posts are correctly stored in the .postgen directory. Test error handling for missing narratives or invalid parameters.",
+        "subtasks": [
+          {
+            "id": 1,
+            "title": "Implement tool definition and parameter validation",
+            "description": "Create the MCPTool definition with proper parameters and validation logic",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 2,
+            "title": "Implement narrative retrieval functionality",
+            "description": "Create the getNarrative function to retrieve narrative data from the .postgen directory",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 3,
+            "title": "Implement tone analysis retrieval",
+            "description": "Complete the getExistingToneAnalysis function to retrieve tone analysis for the domain",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 4,
+            "title": "Implement blog post generation with Claude",
+            "description": "Finalize the buildBlogPostPrompt function and integrate with Claude service",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 5,
+            "title": "Implement post storage functionality",
+            "description": "Create logic to save generated posts as markdown files with frontmatter and separate JSON metadata",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 6,
+            "title": "Add post revision functionality",
+            "description": "Implement ability to revise existing posts based on their ID",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          },
+          {
+            "id": 7,
+            "title": "Write tests for post generation",
+            "description": "Create tests for generating posts with and without narratives, with different styles and word counts",
+            "status": "done",
+            "dependencies": [],
+            "details": "",
+            "testStrategy": ""
+          }
+        ]
       },
       {
         "id": 14,
@@ -846,7 +910,7 @@
     ],
     "metadata": {
       "created": "2025-07-04T10:32:12.253Z",
-      "updated": "2025-07-06T10:33:18.466Z",
+      "updated": "2025-07-06T11:06:28.586Z",
       "description": "Tasks for master context"
     }
   }

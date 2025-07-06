@@ -51,7 +51,9 @@
       "Bash(docker build:*)",
       "mcp__github__create_pull_request",
       "Bash(npm run start:*)",
-      "mcp__task-master-ai__update_subtask"
+      "mcp__task-master-ai__update_subtask",
+      "Bash(npm test)",
+      "Bash(npm test:*)"
     ],
     "deny": []
   },

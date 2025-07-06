@@ -54,11 +54,12 @@ export interface ExistingToneAnalysis {
 
 export class ContentPlanTool {
   private readonly logger: winston.Logger;
-  private readonly searchService: SearchService; // eslint-disable-line @typescript-eslint/no-unused-vars
+  // TODO: Future enhancement - integrate SearchService for real-time content research and trend analysis
 
-  constructor(searchService: SearchService, logger?: winston.Logger) {
+  constructor(_searchService: SearchService, logger?: winston.Logger) {
     this.logger = logger || createLogger({ level: 'info', format: 'simple' });
-    this.searchService = searchService;
+    // Note: _searchService parameter maintained for consistency with other tools but not currently used
+    // TODO: Future enhancement - integrate SearchService for real-time content research and trend analysis
   }
 
   getToolDefinition(): Tool {
@@ -154,6 +155,16 @@ export class ContentPlanTool {
     }
   }
 
+  private createDomainMatcher(domain: string): (filename: string) => boolean {
+    const normalizedDomain = domain.replace(/^www\./, '').toLowerCase();
+    return (filename: string) => {
+      const normalizedFile = filename.toLowerCase();
+      return (normalizedFile.includes(normalizedDomain.replace(/\./g, '-')) || 
+              normalizedFile.includes(normalizedDomain)) && 
+             filename.endsWith('.json');
+    };
+  }
+
   private async validatePostgenDirectory(): Promise<void> {
     const postgenDir = path.join(process.cwd(), '.postgen');
 
@@ -181,9 +192,8 @@ export class ContentPlanTool {
       
       // Look for domain-specific sample files
       const files = await fs.readdir(samplesDir);
-      const domainFiles = files.filter(file => 
-        file.includes(domain.replace(/\./g, '-')) && file.endsWith('.json')
-      );
+      const domainMatcher = this.createDomainMatcher(domain);
+      const domainFiles = files.filter(domainMatcher);
 
       const samples: ExistingSample[] = [];
       
@@ -260,9 +270,8 @@ export class ContentPlanTool {
       const files = await fs.readdir(contentPlansDir);
       
       // Look for domain-specific content plan files
-      const domainFiles = files.filter(file => 
-        file.includes(domain.replace(/\./g, '-')) && file.endsWith('.json')
-      ).sort(); // Sort to get the latest one
+      const domainMatcher = this.createDomainMatcher(domain);
+      const domainFiles = files.filter(domainMatcher).sort(); // Sort to get the latest one
 
       if (domainFiles.length > 0) {
         const latestFile = domainFiles[domainFiles.length - 1];
@@ -512,7 +521,7 @@ Generate exactly ${postCount} post ideas that form a cohesive content strategy.`
 - **Timeframe**: ${contentPlan.timeframe}
 - **Posts Planned**: ${contentPlan.posts.length}
 - **Created**: ${new Date(contentPlan.timestamp).toLocaleDateString()}
-${contentPlan.updatedFrom ? `- **Updated From**: ${new Date(contentPlan.updatedFrom!).toLocaleDateString()}` : ''}
+${contentPlan.updatedFrom ? `- **Updated From**: ${new Date(contentPlan.updatedFrom).toLocaleDateString()}` : ''}
 
 ## Planned Content
 
